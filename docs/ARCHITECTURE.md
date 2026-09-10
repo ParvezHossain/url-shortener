@@ -102,6 +102,12 @@ one existing link produce one success and one not-found response.
 | anything else | 500, generic `ProblemDetail`, no stack trace leaked |
 
 All error responses use RFC 7807 `ProblemDetail` shape (`type`, `title`, `status`, `detail`, `instance`).
+The HTTP content type is `application/problem+json`; `instance` identifies the
+request path. Bean validation adds field messages in an `errors` array without
+rejected values. Missing/malformed JSON returns a generic 400 message without
+parser details. Unexpected failures return a generic 500 message without exception
+messages, causes, or stack traces. `GlobalExceptionHandlerTest` verifies these
+contracts through MVC, including every domain exception.
 
 ## 7. Cross-cutting concerns
 - **Migrations**: Flyway, versioned SQL under `src/main/resources/db/migration`. No `ddl-auto=update` in any profile that touches a shared DB.

@@ -128,6 +128,17 @@ curl -i -X DELETE http://localhost:8080/api/v1/urls/my-link
 
 ---
 
+## Error response contract
+
+Domain and validation errors use `application/problem+json` with `type`, `title`,
+`status`, `detail`, and `instance` (the request path). Field validation errors
+also include an `errors` array, for example `"originalUrl: must not be blank"`.
+Rejected input values are not included in that array.
+
+Missing or malformed JSON returns 400 with `Request body is missing or malformed`.
+Unexpected exceptions return 500 with `An unexpected error occurred`; exception
+messages, causes, and stack traces are not exposed.
+
 ## Example error response shape
 ```json
 {

@@ -266,6 +266,18 @@ deletes returning exactly one 204 and one 404.
 ---
 
 ### TICKET-010 — Global exception handling
+**Status:** Complete (verified 2026-09-10).
+
+**Implementation:** Preserved the existing domain/validation status mappings and
+centralized problem creation to explicitly set `type: about:blank`, which was
+previously omitted. Added method documentation and dedicated HTTP tests covering
+all five problem fields, field validation messages, unreadable request bodies,
+and generic 500 responses without exception details. No new dependencies.
+
+**Verification:** The nine new HTTP cases initially failed because `type` was
+missing. After explicit initialization, `mvn verify` passes all 255 tests with
+no failures or skips, including all required `GlobalExceptionHandlerTest` cases.
+
 **Class:** `exception.GlobalExceptionHandler`
 **Goal:** Map every domain exception + validation failure to the `ProblemDetail` shapes in `ARCHITECTURE.md` §6.
 **Required tests** (`GlobalExceptionHandlerTest`, can be a focused `@WebMvcTest` or direct unit test of the handler methods)
