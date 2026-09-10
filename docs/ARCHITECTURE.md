@@ -55,7 +55,16 @@ Index: unique index on `short_code` (lookup path is always by code).
 
 ## 5. Short code generation strategy
 - Default: Base62 encoding (`[0-9A-Za-z]`) of the auto-incremented `id`, left-padded/shuffled to avoid sequential guessability being *too* obvious for a portfolio project — documented trade-off, not a security control (see Non-goals in PROJECT_OVERVIEW.md; this is not designed to resist enumeration attacks in v1).
-- Custom alias: validated against `^[a-zA-Z0-9_-]{3,16}$`, uniqueness enforced by the DB unique constraint; a `DuplicateAliasException` (409) is thrown on conflict.
+- Creation currently inserts a reserved temporary code (`~` plus 15 random hex digits),
+  obtains the PostgreSQL identity, and updates the code to its Base62 value in one
+  transaction. The repository update clears the persistence context; the service
+  returns a response DTO with the final code. No entity setter or schema change is
+  needed. A failed insert/update rolls back creation.
+- Custom alias: preserved as supplied (case-sensitive), validated at both the DTO
+  boundary and service against `^[a-zA-Z0-9_-]{3,16}$`, uniqueness enforced by the DB unique constraint; a `DuplicateAliasException` (409) is thrown on conflict. The service checks existing
+  codes, then inserts and flushes with `custom_alias=true`; a violation of
+  `uq_short_url_short_code` is also translated to 409 to handle concurrent claims.
+  Invalid aliases raise `InvalidUrlException` (400) for direct service callers.
 
 ## 6. Error handling
 `GlobalExceptionHandler` (`@RestControllerAdvice`) maps:

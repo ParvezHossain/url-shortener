@@ -45,6 +45,7 @@ public class ShortUrl {
         // required by JPA
     }
 
+    /** Creates a shortened URL with its initial timestamps and zero clicks. */
     public ShortUrl(String shortCode, String originalUrl, boolean customAlias, Instant expiresAt) {
         this.shortCode = shortCode;
         this.originalUrl = originalUrl;
@@ -65,34 +66,42 @@ public class ShortUrl {
         this.lastAccessedAt = Instant.now();
     }
 
+    /** Returns the database identity, assigned when the URL is persisted. */
     public Long getId() {
         return id;
     }
 
+    /** Returns the public code used to resolve this URL. */
     public String getShortCode() {
         return shortCode;
     }
 
+    /** Returns the original redirect destination. */
     public String getOriginalUrl() {
         return originalUrl;
     }
 
+    /** Reports whether the public code was chosen by the caller. */
     public boolean isCustomAlias() {
         return customAlias;
     }
 
+    /** Returns when this URL was created. */
     public Instant getCreatedAt() {
         return createdAt;
     }
 
+    /** Returns the expiry timestamp, or null for a URL that never expires. */
     public Instant getExpiresAt() {
         return expiresAt;
     }
 
+    /** Returns the number of recorded accesses. */
     public long getClickCount() {
         return clickCount;
     }
 
+    /** Returns the latest access timestamp, or null before the first access. */
     public Instant getLastAccessedAt() {
         return lastAccessedAt;
     }

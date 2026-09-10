@@ -15,7 +15,7 @@ public final class Base62Encoder {
     }
 
     /**
-     * Encodes a non-negative id into a Base62 string.
+     * Encodes a non-negative id using 0-9, A-Z, then a-z, with zero encoded as "0".
      *
      * @throws IllegalArgumentException if id is negative
      */
@@ -37,9 +37,10 @@ public final class Base62Encoder {
     }
 
     /**
-     * Decodes a Base62 string back into its numeric id.
+     * Decodes a Base62 string into a non-negative long, accepting leading zeroes.
      *
-     * @throws IllegalArgumentException if code is null/blank or contains a character outside the Base62 alphabet
+     * @throws IllegalArgumentException if code is null/blank, contains a character outside
+     *         the Base62 alphabet, or represents a value greater than Long.MAX_VALUE
      */
     public static long decode(String code) {
         if (code == null || code.isBlank()) {
@@ -50,6 +51,9 @@ public final class Base62Encoder {
             int digit = ALPHABET.indexOf(c);
             if (digit < 0) {
                 throw new IllegalArgumentException("invalid Base62 character: " + c);
+            }
+            if (result > (Long.MAX_VALUE - digit) / BASE) {
+                throw new IllegalArgumentException("Base62 value exceeds Long.MAX_VALUE");
             }
             result = result * BASE + digit;
         }

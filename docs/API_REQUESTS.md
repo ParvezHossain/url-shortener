@@ -8,29 +8,49 @@ All bodies are JSON. All error responses follow RFC 7807 `ProblemDetail`.
 ## 1. Create a short URL
 `POST /api/v1/urls`
 
+**Implemented scope (TICKET-004/005):** generated codes or custom aliases for absolute HTTP/HTTPS URLs
+with a host, up to 2048 characters by default (`app.short-code.max-original-url-length`).
+
 **Request**
 ```json
 {
-  "originalUrl": "https://example.com/some/very/long/path?query=1",
-  "customAlias": "my-link",       // optional, 3-16 chars [a-zA-Z0-9_-]
-  "expiresAt": "2026-12-31T23:59:59Z"  // optional, ISO-8601, must be in the future
+  "originalUrl": "https://example.com/some/very/long/path?query=1"
 }
 ```
 
-**Response `201 Created`**
+**Response `201 Created`**, with `Location: http://localhost:8080/10`:
 ```json
 {
-  "shortCode": "my-link",
-  "shortUrl": "http://localhost:8080/my-link",
+  "shortCode": "10",
+  "shortUrl": "http://localhost:8080/10",
   "originalUrl": "https://example.com/some/very/long/path?query=1",
   "createdAt": "2026-09-10T10:15:00Z",
-  "expiresAt": "2026-12-31T23:59:59Z"
+  "expiresAt": null
 }
+```
+The code is the Base62 encoding of the generated database ID; the example assumes
+ID 62. The public origin comes from `APP_BASE_URL`. Creation commits the generated
+code atomically before returning; the internal temporary code is never returned.
+
+To choose a code, include `"customAlias": "My_link-1"` in the request. The response
+uses that exact alias in `shortCode`, `shortUrl`, and `Location`. Aliases are
+case-sensitive, must match `^[a-zA-Z0-9_-]{3,16}$`, and cannot reuse any existing
+short code (generated or custom). Omit the field or use `null` to generate a code;
+an empty or whitespace-only alias is invalid.
+
+```bash
+curl -i -X POST http://localhost:8080/api/v1/urls \
+  -H 'Content-Type: application/json' \
+  -d '{"originalUrl":"https://example.com/path","customAlias":"My_link-1"}'
 ```
 
 **Errors**
-- `400` — `originalUrl` missing/malformed, or `customAlias` fails the pattern, or `expiresAt` is in the past.
-- `409` — `customAlias` already taken.
+- `400` — missing, blank, malformed, non-HTTP(S), or over-length destination;
+  missing/malformed JSON body.
+- `400` — invalid alias pattern or non-null `expiresAt` (expiry support belongs to TICKET-006).
+- `409` — the requested alias is already taken, including concurrent claims.
+
+Redirect and stats endpoints below remain planned for their respective tickets.
 
 ---
 

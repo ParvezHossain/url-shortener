@@ -5,6 +5,14 @@ A self-hosted URL shortener API built with Java 25, Spring Boot 4+, PostgreSQL, 
 > New here? Read `docs/PROJECT_OVERVIEW.md` for what/why, `docs/ARCHITECTURE.md` for how it's built, and `AGENTS.md` if you're an AI agent (or a human) picking up tickets.
 
 ## Features
+
+Current API: `POST /api/v1/urls` validates an HTTP/HTTPS destination and returns a
+created short link with an ID-based Base62 code or a custom alias. Aliases are
+case-sensitive and must match `[a-zA-Z0-9_-]{3,16}`; invalid aliases return HTTP 400
+and occupied aliases return HTTP 409. Expiry, redirects, and stats remain planned;
+non-null expiry currently returns HTTP 400. See `docs/API_REQUESTS.md` for the implemented contract.
+
+Planned full feature set:
 - Shorten a URL to a short code (auto-generated, Base62) or a custom alias.
 - Optional expiration on links.
 - Redirect endpoint with click analytics.
@@ -35,15 +43,32 @@ API is now at `http://localhost:8080`, Swagger UI at `http://localhost:8080/swag
 
 ### Run locally (DB in Docker, app on host)
 ```bash
+cp .env.example .env
+set -a
+. ./.env
+set +a
 docker compose up -d postgres
 mvn spring-boot:run
 ```
+
+Compose reads `.env` automatically; Maven needs the variables exported as above.
+If host ports are occupied, change `POSTGRES_PORT` / `APP_PORT` in `.env`.
+For a host-run app, also update `POSTGRES_URL` to match `POSTGRES_PORT`.
+Set `APP_BASE_URL` to the app's public origin. The containerized app always
+connects to `postgres:5432` inside the Compose network.
+
+Check startup with `curl --fail http://localhost:8080/actuator/health`
+(adjust the port when using `APP_PORT`). Expect HTTP 200 and status `UP`.
 
 ### Run tests
 ```bash
 mvn clean verify           # full suite (unit + integration, needs Docker for Testcontainers)
 mvn test -Dgroups=unit     # unit tests only, fast, no Docker
 ```
+
+The bootstrap integration tests start an isolated PostgreSQL container on a random
+port using Testcontainers. A running Docker daemon is required; a pre-existing
+database or `.env` file is not required for `mvn clean verify`.
 
 ## Example usage
 ```bash

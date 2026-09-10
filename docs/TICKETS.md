@@ -5,6 +5,14 @@ Each ticket is scoped to be doable independently (mostly) in one PR. "Required u
 ---
 
 ### TICKET-001 — Project bootstrap & Docker Compose
+**Status:** Complete (verified 2026-09-10).
+
+**Verification:** `mvn clean verify` passes all 18 tests, including context startup
+and HTTP health against Testcontainers PostgreSQL. `docker compose up --build -d`
+starts both services and `/actuator/health` returns HTTP 200 with status `UP`.
+Compose was checked in an isolated project with `POSTGRES_PORT=25432` and
+`APP_PORT=18080` because the default host ports were occupied.
+
 **Goal:** Buildable skeleton: Maven project (Java 25, Spring Boot 4+), Docker Compose with `app` + `postgres`, Actuator health check wired up.
 **Acceptance criteria**
 - `mvn clean verify` succeeds on an empty skeleton.
@@ -17,6 +25,18 @@ Each ticket is scoped to be doable independently (mostly) in one PR. "Required u
 ---
 
 ### TICKET-002 — Domain model & Flyway migration
+**Status:** Complete (verified 2026-09-10).
+
+**Implementation:** Existing `ShortUrl` and V1 migration match the required schema.
+Added `ShortUrlRepository.findByShortCode`, entity documentation, five entity unit
+tests, and five repository tests against Testcontainers PostgreSQL. Repository
+tests apply Flyway migrations with Hibernate schema validation and verify generated
+IDs, field persistence, lookups, duplicate-code rejection, and persisted analytics.
+Added test-scoped `spring-boot-starter-data-jpa-test` and
+`spring-boot-starter-flyway-test` for Spring Boot 4 JPA slices with Flyway.
+
+**Verification:** `mvn clean verify` passes all 28 tests with no failures or skips.
+
 **Goal:** `ShortUrl` JPA entity + `V1__create_short_url_table.sql` migration matching `ARCHITECTURE.md` §4.
 **Acceptance criteria**
 - Migration creates `short_url` table with unique index on `short_code`.
@@ -31,6 +51,18 @@ Each ticket is scoped to be doable independently (mostly) in one PR. "Required u
 ---
 
 ### TICKET-003 — Base62 short code generator
+**Status:** Complete (verified 2026-09-10).
+
+**Implementation:** Stateless encoding uses `0-9A-Za-z`, maps zero to `0`, and
+rejects negative IDs. Decoding rejects null/blank input, invalid characters, and
+values exceeding `Long.MAX_VALUE` before arithmetic can overflow. Leading zeroes
+are accepted. Tests cover known values, numeric boundaries, 100 seeded random
+round-trips, deterministic alphabet-only output, and invalid input.
+
+**Verification:** Three overflow regression cases failed before the fix.
+`mvn clean verify` now passes all 161 tests, including 149 Base62 cases, with no
+failures or skips.
+
 **Class:** `util.Base62Encoder`
 **Goal:** Stateless encoder: `String encode(long id)` and `long decode(String code)`.
 **Acceptance criteria**
@@ -48,6 +80,22 @@ Each ticket is scoped to be doable independently (mostly) in one PR. "Required u
 ---
 
 ### TICKET-004 — Create short URL (core happy path)
+**Status:** Complete (verified 2026-09-10).
+
+**Implementation:** Added request/response records, a transactional service, and
+`POST /api/v1/urls` returning HTTP 201 with the public link in `Location`. The
+service validates HTTP/HTTPS destinations and the configured maximum length,
+persists creation metadata, and replaces an internal temporary code with the
+generated ID's Base62 encoding within the transaction. The repository performs
+the code update without adding entity setters. Non-null alias/expiry options are
+rejected until TICKET-005/006. Unreadable JSON returns HTTP 400 ProblemDetail.
+Added test-scoped `spring-boot-starter-webmvc-test` for Boot 4 MVC slice tests.
+Updated README, API requests, and architecture documentation.
+
+**Verification:** `mvn clean verify` passes all 183 tests, including mocked service
+and encoder tests, MVC tests, and a real HTTP creation test that independently
+reads the committed PostgreSQL row and verifies its ID-derived code.
+
 **Class:** `service.UrlShortenerServiceImpl`, method `create(CreateShortUrlRequest)`
 **Goal:** Persist a new `ShortUrl`; auto-generate code via `Base62Encoder` when no custom alias given.
 **Acceptance criteria**
@@ -69,6 +117,20 @@ Each ticket is scoped to be doable independently (mostly) in one PR. "Required u
 ---
 
 ### TICKET-005 — Custom alias support
+**Status:** Complete (verified 2026-09-10).
+
+**Implementation:** Validates aliases at the DTO and service boundaries, preserves
+case and exact spelling, and persists `custom_alias=true` without Base62 encoding.
+Uses the permitted `InvalidUrlException` option for invalid aliases (the test names
+below therefore use `throwsInvalidUrlException`). Existing codes and concurrent
+unique-index conflicts raise `DuplicateAliasException` (HTTP 409). No schema or
+library changes. Expiry remains unsupported until TICKET-006.
+
+**Verification:** `mvn verify` passes all 206 tests with no failures or skips.
+Coverage includes valid boundary lengths, blank/invalid aliases, existing and
+concurrently claimed aliases, HTTP 400/409 responses, and an HTTP/PostgreSQL test
+that verifies committed alias metadata and rejection of a repeated request.
+
 **Extends:** `UrlShortenerServiceImpl.create(...)`
 **Goal:** When `customAlias` is present, validate pattern and uniqueness instead of generating a code.
 **Acceptance criteria**
@@ -77,9 +139,9 @@ Each ticket is scoped to be doable independently (mostly) in one PR. "Required u
 - Alias already taken → `DuplicateAliasException`.
 **Required tests**
 - `create_validCustomAlias_savesWithGivenCode()`
-- `create_aliasTooShort_throwsInvalidAliasException()`
-- `create_aliasTooLong_throwsInvalidAliasException()`
-- `create_aliasWithInvalidCharacters_throwsInvalidAliasException()`
+- `create_aliasTooShort_throwsInvalidUrlException()`
+- `create_aliasTooLong_throwsInvalidUrlException()`
+- `create_aliasWithInvalidCharacters_throwsInvalidUrlException()`
 - `create_aliasAlreadyTaken_throwsDuplicateAliasException()`
 **Controller tests**
 - `createShortUrl_duplicateAlias_returns409()`

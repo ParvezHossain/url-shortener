@@ -5,7 +5,7 @@ CREATE TABLE short_url (
     custom_alias      BOOLEAN NOT NULL DEFAULT FALSE,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     expires_at        TIMESTAMPTZ NULL,
-    click_count        BIGINT NOT NULL DEFAULT 0,
+    click_count       BIGINT NOT NULL DEFAULT 0,
     last_accessed_at  TIMESTAMPTZ NULL
 );
 
