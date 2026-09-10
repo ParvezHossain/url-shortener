@@ -123,8 +123,10 @@ curl -i -X DELETE http://localhost:8080/api/v1/urls/my-link
 
 ## 5. Health & docs (operational, not business endpoints)
 - `GET /actuator/health` — liveness/readiness.
-- `GET /swagger-ui.html` — interactive API docs (springdoc-openapi).
-- `GET /v3/api-docs` — raw OpenAPI JSON.
+- `GET /swagger-ui.html` — redirects to the interactive Swagger UI (springdoc-openapi).
+- `GET /v3/api-docs` — generated OpenAPI JSON for creation, redirect, stats, and deletion,
+  including operation summaries, request schemas, response codes, headers, and
+  shared `application/problem+json` error schemas (TICKET-011).
 
 ---
 

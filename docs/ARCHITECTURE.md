@@ -113,7 +113,11 @@ contracts through MVC, including every domain exception.
 - **Migrations**: Flyway, versioned SQL under `src/main/resources/db/migration`. No `ddl-auto=update` in any profile that touches a shared DB.
 - **Config**: `application.yml` with Spring profiles `local`, `docker`, `test`; secrets via env vars (`POSTGRES_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`).
 - **Observability**: Spring Boot Actuator (`/actuator/health`, `/actuator/metrics`), structured JSON logging in the `docker`/prod profile.
-- **API docs**: springdoc-openapi, exposed at `/swagger-ui.html`.
+- **API docs**: springdoc-openapi, exposed at `/swagger-ui.html` and `/v3/api-docs`.
+  `OpenApiConfig` supplies API metadata and reusable problem response components.
+  Controllers declare operation summaries and applicable response codes; request
+  DTO annotations describe validation and optional fields. Generic advice-response
+  inference is disabled so endpoints only advertise their applicable domain errors.
 
 ## 8. Deployment shape
 `docker-compose.yml` with two services: `app` (built from `Dockerfile`, multi-stage: Maven build → slim JRE runtime) and `postgres`. App waits for Postgres healthcheck before starting; Flyway migrates on boot.

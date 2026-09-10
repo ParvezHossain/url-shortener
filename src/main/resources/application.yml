@@ -32,6 +32,7 @@ app:
     custom-alias-pattern: "^[a-zA-Z0-9_-]{3,16}$"
 
 springdoc:
+  override-with-generic-response: false
   swagger-ui:
     path: /swagger-ui.html
 

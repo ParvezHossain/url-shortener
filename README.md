@@ -90,6 +90,13 @@ curl http://localhost:8080/api/v1/urls/<shortCode>
 ```
 Full request/response reference: `docs/API_REQUESTS.md`.
 
+## Interactive API documentation
+
+Open `http://localhost:8080/swagger-ui.html` to explore the API and try requests.
+The generated specification is at `http://localhost:8080/v3/api-docs`. It documents
+all four business operations, request validation, success headers, and problem
+responses. Adjust the host/port for your deployment.
+
 ## Project documentation
 | File | Contents |
 |---|---|

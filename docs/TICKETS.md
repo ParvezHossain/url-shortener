@@ -291,6 +291,20 @@ no failures or skips, including all required `GlobalExceptionHandlerTest` cases.
 ---
 
 ### TICKET-011 — OpenAPI / Swagger documentation
+**Status:** Complete (verified 2026-09-10).
+
+**Implementation:** Added `OpenApiConfig` metadata and shared problem response
+schemas. All four controller operations now declare summaries, descriptions,
+applicable response codes, success schemas, and redirect/creation headers.
+Request schemas describe URL validation, optional aliases, and expiry. Reuses
+the existing Springdoc dependency; disables generic advice-response inference
+so endpoint documentation reflects the applicable errors.
+
+**Verification:** `mvn verify` passes all 257 tests with no failures or skips.
+`OpenApiConfigTest` checks all generated operations and response codes at
+`/v3/api-docs`, shared problem schemas, and reachable Swagger UI HTML via
+`/swagger-ui.html` against a running application with Testcontainers PostgreSQL.
+
 **Goal:** springdoc-openapi wired up; every endpoint annotated with summary/response codes; matches `API_REQUESTS.md`.
 **Acceptance criteria**
 - `/swagger-ui.html` and `/v3/api-docs` reachable and reflect actual endpoints.
