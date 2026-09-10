@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Maven verification and Docker smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      COMPOSE_PROJECT_NAME: urlshortener-ci
+      APP_PORT: '18080'
+      POSTGRES_PORT: '25432'
+      APP_BASE_URL: http://localhost:18080
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Verify application
+        run: mvn --batch-mode --no-transfer-progress clean verify
+      - name: Build and start containers
+        run: docker compose up --build --wait --wait-timeout 180
+      - name: Check application health
+        run: curl --fail --silent --show-error http://localhost:18080/actuator/health
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Remove CI containers and volumes
+        if: always()
+        run: docker compose down --volumes --remove-orphans

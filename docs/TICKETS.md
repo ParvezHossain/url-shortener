@@ -314,6 +314,24 @@ so endpoint documentation reflects the applicable errors.
 ---
 
 ### TICKET-012 — Dockerization & CI
+**Status:** Implemented and locally verified (2026-09-10); hosted CI run pending push.
+
+**Implementation:** Retained the Maven build / Java 25 Alpine JRE stages, added
+an unprivileged runtime user and an HTTP health check. Added GitHub Actions for
+all PRs, main-branch pushes, and manual dispatch: Temurin 25, Maven cache,
+`mvn --batch-mode --no-transfer-progress clean verify`, Compose build/start with
+health waiting, HTTP health smoke check, failure logs, and runner cleanup.
+Verification failures propagate to the job; no continue-on-error or test skips.
+
+**Verification:** Clean Maven verification passes all 257 tests without failures
+or skips. Workflow YAML parses and has the required PR trigger and verification
+command. `docker compose up --build --wait --wait-timeout 180` succeeded in the
+isolated `urlshortener-ticket012` project on ports 18080/25432. Both services became
+healthy; HTTP create/redirect/stats/delete/OpenAPI checks passed, and runtime UID
+was non-root. The temporary containers and volume were removed after testing.
+A hosted GitHub Actions run has not been performed because the workflow has not
+been pushed; that acceptance check remains pending.
+
 **Goal:** Multi-stage `Dockerfile` (Maven build stage → slim JRE runtime), GitHub Actions workflow running `mvn clean verify` on every PR.
 **Acceptance criteria**
 - Image builds and runs standalone against the `postgres` service in `docker-compose.yml`.

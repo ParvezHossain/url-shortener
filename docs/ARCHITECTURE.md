@@ -121,6 +121,10 @@ contracts through MVC, including every domain exception.
 
 ## 8. Deployment shape
 `docker-compose.yml` with two services: `app` (built from `Dockerfile`, multi-stage: Maven build → slim JRE runtime) and `postgres`. App waits for Postgres healthcheck before starting; Flyway migrates on boot.
+The runtime image uses a non-root user and an HTTP health check. Compose `--wait`
+waits for the database and app to become healthy. GitHub Actions runs clean Maven
+verification on each PR and main-branch push, then builds and health-checks the
+Compose stack. Any failing verification or container startup fails the job.
 
 ## 9. Future extension points (see TICKETS.md "Future" section)
 - Auth (API keys or OAuth2) → would add a `user_id` FK to `short_url` and a `security` package.

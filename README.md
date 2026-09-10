@@ -75,6 +75,20 @@ The bootstrap integration tests start an isolated PostgreSQL container on a rand
 port using Testcontainers. A running Docker daemon is required; a pre-existing
 database or `.env` file is not required for `mvn clean verify`.
 
+## Docker build and CI
+
+The Dockerfile builds the JAR with Maven and runs it as a non-root user in a
+Java 25 Alpine JRE image. Its health check calls `/actuator/health`.
+Use `docker compose up --build --wait --wait-timeout 180` to wait for both
+PostgreSQL and the app to become healthy. The database uses a named volume.
+
+`.github/workflows/ci.yml` runs on every pull request, pushes to `main`, and manual
+workflow dispatch. It installs Temurin 25, caches Maven dependencies, and runs
+`mvn --batch-mode --no-transfer-progress clean verify`, including Testcontainers.
+A failed verification fails the job. It then builds and starts Compose, checks
+health, and cleans up the runner's containers and volumes. Container packaging
+skips tests because the preceding verification step runs the full suite.
+
 ## Example usage
 ```bash
 # Create a short URL
