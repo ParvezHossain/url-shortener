@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: url-shortener
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/urlshortener}
+    username: ${POSTGRES_USER:urlshortener}
+    password: ${POSTGRES_PASSWORD:urlshortener}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+  short-code:
+    max-original-url-length: 2048
+    custom-alias-pattern: "^[a-zA-Z0-9_-]{3,16}$"
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:postgresql://postgres:5432/urlshortener
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+  jpa:
+    hibernate:
+      ddl-auto: validate
