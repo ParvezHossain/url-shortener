@@ -348,10 +348,383 @@ been pushed; that acceptance check remains pending.
 
 ---
 
-## Future / backlog (not required for v1, do not implement without a new ticket + ARCHITECTURE.md update)
-- **TICKET-F01** — API key auth + per-user URL ownership.
-- **TICKET-F02** — Redis cache in front of `resolve()`.
-- **TICKET-F03** — Rate limiting (Bucket4j) on `POST /api/v1/urls`.
-- **TICKET-F04** — Bulk shorten endpoint (`POST /api/v1/urls/bulk`).
-- **TICKET-F05** — QR code generation for a short URL.
-- **TICKET-F06** — Link-safety/malware scanning integration before accepting a URL.
+## Frontend — v1
+
+The v1 frontend is a responsive React + TypeScript application under `frontend/`, built with Vite and served by Spring Boot as static assets in production. It consumes the existing `/api/v1` API and does not introduce authentication or invent backend capabilities. Styling uses an application-owned design system based on CSS custom properties; any additional UI library requires an explicit architecture decision.
+
+---
+
+### TICKET-014 — Frontend foundation and professional design system
+**Status:** Backlog.
+
+**Depends on:** TICKET-012.
+
+**Goal:** Bootstrap the frontend, establish the visual language, and integrate its production build with the Spring Boot application.
+
+**Design direction:** A polished, trustworthy SaaS-style interface with a deep navy/slate foundation, an electric-blue accent, generous spacing, subtle elevation, crisp typography, and restrained motion. The interface must look intentional on mobile, tablet, laptop, and wide desktop screens.
+
+**Component(s):** `AppShell`, `ThemeToggle`, `Button` (and the shared token/design-system layer they consume)
+**Acceptance criteria**
+- Create `frontend/` using React, TypeScript, and Vite with lint, format, test, and production-build commands.
+- Add an application shell with responsive header, logo/wordmark, navigation, main content area, and footer.
+- Define reusable tokens for color, typography, spacing, radius, elevation, focus rings, breakpoints, and motion.
+- Provide reusable `Button`, `Input`, `Card`, `Alert`, `Spinner`, `Skeleton`, `Modal`, and `Toast` components.
+- Support light and dark themes, defaulting to the operating-system preference and persisting the user's explicit choice.
+- Use semantic HTML, visible keyboard focus, reduced-motion support, and WCAG 2.2 AA color contrast.
+- Configure the local Vite development proxy for the Spring Boot API; do not hardcode production hosts.
+- Integrate the frontend production build into Maven/Docker so the deployed application remains a single self-hosted app.
+- Document local frontend development and production build commands in `README.md`.
+  **Required tests**
+- `AppShell_rendersPrimaryNavigationAndFooter()`
+- `ThemeToggle_userChangesTheme_persistsPreference()`
+- `Button_keyboardActivation_invokesAction()`
+- `frontendProductionBuild_isServedBySpringBoot()` (integration smoke test)
+
+---
+
+### TICKET-015 — Responsive create-short-link experience
+**Status:** Backlog.
+
+**Depends on:** TICKET-014 and TICKET-006.
+
+**Goal:** Build the primary landing page and short-link creation workflow using `POST /api/v1/urls`.
+
+**Component(s):** `CreateUrlForm`
+**Acceptance criteria**
+- Present a concise hero section and a prominent creation card above the fold.
+- The form contains original URL, optional custom alias, and optional expiry fields.
+- Add clear helper text for the alias pattern (3–16 characters; letters, numbers, `_`, and `-`) and display the public base URL beside the alias input.
+- Validate required fields and obvious format errors client-side while keeping the backend authoritative.
+- Disable repeated submission while a request is pending and show an accessible progress state.
+- Map RFC 7807 validation, invalid URL, and duplicate-alias responses to helpful field or form messages.
+- Never clear valid user input after an API or network failure.
+- The complete workflow must be usable at 320px width without horizontal scrolling.
+  **Required tests**
+- `CreateUrlForm_validMinimumInput_submitsExpectedPayload()`
+- `CreateUrlForm_optionalAliasAndExpiry_submitsExpectedPayload()`
+- `CreateUrlForm_invalidInput_blocksSubmissionAndShowsMessage()`
+- `CreateUrlForm_duplicateAlias_showsAliasError()`
+- `CreateUrlForm_serverUnavailable_preservesInputAndShowsRetryMessage()`
+
+---
+
+### TICKET-016 — Creation result, copy, share, and retry interactions
+**Status:** Backlog.
+
+**Depends on:** TICKET-015.
+
+**Goal:** Turn a successful API response into a polished, useful result experience.
+
+**Component(s):** `CreationResult`
+**Acceptance criteria**
+- Show the generated short URL in a high-visibility success panel without navigating away from the page.
+- Provide copy-to-clipboard with an inline fallback when the Clipboard API is unavailable.
+- Provide native sharing when Web Share is supported and hide the action when it is not supported.
+- Display original URL, expiry status, and whether the code is generated or custom.
+- Provide clear actions for "Open link," "View analytics," and "Shorten another."
+- "Shorten another" resets transient state intentionally; browser refresh must not silently resubmit the previous request.
+- Announce success and copy status through an ARIA live region.
+  **Required tests**
+- `CreationResult_success_displaysShortUrlAndMetadata()`
+- `CreationResult_copySupported_copiesShortUrlAndConfirms()`
+- `CreationResult_clipboardUnavailable_showsManualCopyFallback()`
+- `CreationResult_shortenAnother_resetsFormAndResult()`
+
+---
+
+### TICKET-017 — Link analytics lookup and delete workflow
+**Status:** Backlog.
+
+**Depends on:** TICKET-014, TICKET-008, and TICKET-009.
+
+**Goal:** Let a user inspect one known short code and safely delete it using the current v1 API. This is not an all-links dashboard because v1 has no list endpoint or ownership model.
+
+**Component(s):** `AnalyticsLookup`
+**Acceptance criteria**
+- Add an analytics route with a short-code lookup form backed by `GET /api/v1/urls/{shortCode}`.
+- Display original URL, short URL, click count, creation time, last-accessed time, expiry time, custom-alias status, and current expired/active state.
+- Use properly formatted dates while preserving the exact timestamp in accessible text or a tooltip.
+- Distinguish empty/unvisited, expired, not-found, network-error, loading, and success states.
+- Add delete behind a confirmation modal that identifies the exact short code and explains that deletion is permanent.
+- Call `DELETE /api/v1/urls/{shortCode}` only after explicit confirmation; on success, clear stale analytics and show confirmation.
+- Do not store link data in browser storage.
+  **Required tests**
+- `AnalyticsLookup_existingCode_rendersStatsWithoutIncrementingClicks()`
+- `AnalyticsLookup_unknownCode_rendersNotFoundState()`
+- `AnalyticsLookup_expiredCode_rendersExpiredState()`
+  **Delete tests**
+- `DeleteLink_cancelled_doesNotCallApi()`
+- `DeleteLink_confirmed_deletesAndClearsStats()`
+
+---
+
+### TICKET-018 — Responsive quality, accessibility, and UI hardening
+**Status:** Backlog.
+
+**Depends on:** TICKET-015 through TICKET-017.
+
+**Goal:** Make the complete frontend production-quality across devices, assistive technologies, and unreliable networks.
+
+**Component(s):** `ApiErrorBoundary` (plus cross-cutting layout, accessibility, and CSP work across all routes)
+**Acceptance criteria**
+- Verify layouts at 320px, 375px, 768px, 1024px, 1440px, and 1920px widths.
+- Meet WCAG 2.2 AA for keyboard operation, landmarks, labels, focus order, contrast, errors, and status announcements.
+- Add a skip link and ensure every modal traps focus, closes with Escape, and restores focus to its trigger.
+- Respect `prefers-reduced-motion`; decorative animation must never block interaction.
+- Prevent layout shift in loading and result states with stable containers or skeletons.
+- Define friendly offline, timeout, malformed-response, 429, and 5xx states without exposing stack traces.
+- Add a strict Content Security Policy compatible with the built assets; do not use inline scripts or render unsanitized API content as HTML.
+- Achieve agreed Lighthouse CI minimums on the production build: Accessibility 95, Best Practices 95, SEO 90, and Performance 85.
+  **Required tests**
+- Automated accessibility scan reports no serious or critical violations on create and analytics routes.
+- Keyboard-only end-to-end test completes create, copy, analytics lookup, and delete confirmation.
+- Responsive end-to-end smoke tests pass at mobile and desktop viewports.
+- `ApiErrorBoundary_unexpectedFailure_showsSafeRecoveryUi()`
+
+---
+
+### TICKET-019 — Frontend CI, end-to-end tests, and deployment documentation
+**Status:** Backlog.
+
+**Depends on:** TICKET-012 and TICKET-018.
+
+**Goal:** Make frontend quality part of the normal build and release path.
+
+**Acceptance criteria**
+- CI runs frontend lint, type-check, unit/component tests, production build, and backend `mvn clean verify` on every PR.
+- Add Playwright end-to-end coverage against the containerized app and PostgreSQL with isolated test data.
+- Cache Maven and Node dependencies without caching secrets or generated runtime data.
+- The Docker image contains only production frontend assets, not `node_modules`, source maps containing local paths, or development servers.
+- Add a frontend architecture section and screenshots for mobile and desktop to `README.md`.
+- Document configuration, local proxying, build troubleshooting, and the single-container production flow.
+  **Required tests** (Playwright end-to-end, containerized app)
+- `userCreatesShortUrlAndOpensRedirect()`
+- `userLooksUpAnalyticsAndDeletesLink()`
+- `duplicateAliasDisplaysActionableError()`
+- CI/container smoke test proves `/`, `/analytics`, and `/api/v1/urls` are reachable through the expected application origin.
+
+---
+
+## Future / backlog (not required for v1)
+
+---
+
+### TICKET-F01 — API key authentication, ownership, and v2 boundary
+**Status:** Backlog.
+
+**Goal:** Authenticate API clients and enforce per-owner isolation for every management operation.
+
+**Acceptance criteria**
+- Store only a strong hash and non-secret prefix of each API key; show the full key once at creation.
+- Associate each new v2 short URL with an owner; add the relationship through Flyway.
+- Require an API key on `/api/v2/urls/**`; return 401 for missing/invalid credentials and 403 where an authenticated principal lacks permission.
+- Create, stats, list, and delete operations may access only the authenticated owner's records.
+- Define key creation, rotation, revocation, last-used timestamp, and audit behavior.
+- Define a deterministic migration policy for pre-v2 links; do not guess ownership.
+- Use constant-time comparison where applicable and never log raw API keys.
+- Publish the v1 deprecation/sunset behavior and migration examples in OpenAPI and `docs/API_REQUESTS.md`.
+  **Required tests**
+- `authenticate_validApiKey_returnsOwnerPrincipal()`
+- `authenticate_invalidOrRevokedApiKey_returns401()`
+- `getStats_otherOwnersCode_doesNotDiscloseResource()`
+- `delete_otherOwnersCode_doesNotDeleteResource()`
+- `create_authenticatedOwner_persistsOwnership()`
+- Repository integration tests verify ownership constraints and key-prefix uniqueness.
+
+---
+
+### TICKET-F02 — Redis redirect cache
+**Status:** Backlog.
+
+**Depends on:** TICKET-F01.
+
+**Goal:** Reduce database reads on hot redirects without returning deleted, expired, or changed destinations.
+
+**Acceptance criteria**
+- Cache only the minimum redirect data with a TTL no longer than the link's remaining lifetime.
+- Use cache-aside reads; Redis failure falls back to PostgreSQL and does not break redirects.
+- Evict cache entries on delete, expiry-state change, or future destination update.
+- Preserve correct click analytics; caching the destination must not lose or double-count clicks.
+- Expose cache hit, miss, eviction, and failure metrics without high-cardinality labels.
+  **Required tests**
+- `resolve_cacheHit_returnsDestinationWithoutLookup()`
+- `resolve_cacheMiss_loadsDatabaseAndCachesResult()`
+- `resolve_expiringLink_capsCacheTtlAtExpiry()`
+- `delete_existingLink_evictsCachedEntry()`
+- Integration test verifies behavior while Redis is unavailable.
+
+---
+
+### TICKET-F03 — Owner-aware rate limiting and quotas
+**Status:** Backlog.
+
+**Depends on:** TICKET-F01 and TICKET-F02.
+
+**Goal:** Protect create and redirect traffic with configurable, observable limits.
+
+**Acceptance criteria**
+- Rate-limit authenticated management calls primarily by owner/API key and public redirects by a privacy-reviewed client identifier.
+- Configure limits through environment variables; do not hardcode production policy.
+- Return `429` ProblemDetail with standard rate-limit and `Retry-After` headers.
+- Use a Redis-backed distributed strategy so limits remain correct with multiple app instances.
+- Fail according to a documented fail-open/fail-closed policy per endpoint class.
+  **Required tests**
+- `create_withinLimit_succeeds()`
+- `create_limitExceeded_returns429WithRetryAfter()`
+- `rateLimit_differentOwners_haveIndependentBuckets()`
+- Multi-instance integration test verifies a shared distributed limit.
+
+---
+
+### TICKET-F04 — Bulk URL creation
+**Status:** Backlog.
+
+**Depends on:** TICKET-F01 and TICKET-F03.
+
+**Goal:** Add `POST /api/v2/urls/bulk` for bounded batch creation.
+
+**Acceptance criteria**
+- Enforce a configurable maximum batch size and request-body size.
+- Preserve input order and return per-item success or RFC 7807-compatible failure details.
+- Define atomicity explicitly; recommended default is partial success with no silent rollback of valid items.
+- Detect duplicate aliases both within the request and against persisted records.
+- Apply ownership, quota, rate-limit, URL validation, alias, and expiry rules consistently with single creation.
+- Prevent N+1 uniqueness lookups and unbounded memory use.
+  **Required tests**
+- `bulkCreate_allValid_returnsOrderedSuccesses()`
+- `bulkCreate_mixedValidity_returnsPerItemResults()`
+- `bulkCreate_duplicateAliasWithinBatch_reportsConflict()`
+- `bulkCreate_exceedsMaximum_returns413Or400ProblemDetail()`
+- Repository integration test verifies persisted ownership for successful items.
+
+---
+
+### TICKET-F05 — QR code generation
+**Status:** Backlog.
+
+**Depends on:** TICKET-F01.
+
+**Goal:** Generate a QR representation of an owned short URL without persisting redundant image blobs.
+
+**Acceptance criteria**
+- Add owner-protected SVG and PNG endpoints with explicit content types and cache headers.
+- Encode the public short URL, never the original destination.
+- Bound size, margin, and error-correction inputs to safe documented values.
+- SVG output must be generated by the application and contain no scripts or external references.
+- The frontend offers preview and download actions with an accessible text alternative.
+  **Required tests**
+- `generateQr_existingOwnedCode_returnsScannableImage()`
+- `generateQr_unknownOrForeignCode_doesNotDiscloseResource()`
+- `generateQr_invalidOptions_returns400ProblemDetail()`
+- Image decoding test confirms the QR resolves to the expected short URL.
+
+---
+
+### TICKET-F06 — Link-safety and malware scanning
+**Status:** Backlog.
+
+**Depends on:** TICKET-F01.
+
+**Goal:** Evaluate submitted destinations against a pluggable safety provider before activation.
+
+**Acceptance criteria**
+- Introduce `PENDING`, `ACTIVE`, `REJECTED`, and `SCAN_FAILED` safety states via Flyway.
+- Normalize and validate URLs before scanning; block unsupported schemes, embedded credentials, and configured private/internal address ranges.
+- Define synchronous vs asynchronous activation and provider timeout/retry behavior in `ARCHITECTURE.md`.
+- Reject known-malicious destinations with a safe ProblemDetail that does not expose provider internals.
+- Cache scan verdicts for a bounded period and keep an auditable provider/verdict timestamp.
+- Provider outage follows a documented policy and is observable.
+  **Required tests**
+- `create_safeDestination_activatesLink()`
+- `create_maliciousDestination_rejectsLink()`
+- `create_privateNetworkDestination_isRejectedBeforeProviderCall()`
+- `create_scannerTimeout_appliesDocumentedFailurePolicy()`
+- Integration test verifies pending links cannot redirect.
+
+---
+
+### TICKET-F07 — Paginated owner dashboard API
+**Status:** Backlog.
+
+**Depends on:** TICKET-F01.
+
+**Goal:** Support a real authenticated link-management dashboard.
+
+**Component(s):** Frontend analytics area (authenticated, paginated dashboard)
+**Acceptance criteria**
+- Add `GET /api/v2/urls` with bounded pagination, deterministic sorting, and filters for status, alias, creation range, and expiry.
+- Return only the authenticated owner's links and expose pagination metadata.
+- Avoid returning API key data or internal entity fields.
+- Add indexes justified by query plans and introduced through Flyway.
+- Update the frontend analytics area into an authenticated paginated dashboard with empty, loading, and filtered states.
+  **Required tests**
+- `listUrls_authenticatedOwner_returnsOnlyOwnedLinks()`
+- `listUrls_filtersAndSortsDeterministically()`
+- `listUrls_pageSizeAboveMaximum_isRejectedOrCapped()`
+- Repository integration tests validate pagination and relevant indexes.
+
+---
+
+### TICKET-F08 — Time-series analytics and privacy controls
+**Status:** Backlog.
+
+**Depends on:** TICKET-F01.
+
+**Goal:** Provide useful trends beyond a lifetime click counter while collecting the minimum necessary data.
+
+**Acceptance criteria**
+- Record aggregate click buckets by link and time period; define timezone behavior explicitly.
+- Provide owner-protected trend endpoints with bounded date ranges and granularity.
+- Define retention and anonymization for IP-derived, referrer, user-agent, country, or device attributes before collecting any of them.
+- Keep redirects resilient if analytics persistence is degraded; document delivery guarantees.
+- Add low-cardinality metrics for dropped/delayed analytics events.
+- Display accessible charts plus equivalent tabular data in the frontend.
+  **Required tests**
+- `recordClick_sameBucket_incrementsAggregate()`
+- `getTrend_foreignLink_doesNotDiscloseAnalytics()`
+- `getTrend_invalidRange_returns400ProblemDetail()`
+- Integration test verifies total and bucketed counts reconcile under concurrent clicks.
+
+---
+
+### TICKET-F09 — Link lifecycle management
+**Status:** Backlog.
+
+**Depends on:** TICKET-F01, TICKET-F02, and TICKET-F07.
+
+**Goal:** Let owners update destinations/expiry and temporarily deactivate links with safe cache behavior.
+
+**Acceptance criteria**
+- Add owner-protected update and activate/deactivate operations with optimistic locking.
+- A destination change requires the same validation and safety checks as creation.
+- Short code and ownership are immutable.
+- Deactivated links return a documented response and do not increment click analytics.
+- Every state change evicts the redirect cache and records an audit event.
+- The frontend warns clearly before changing a live destination.
+  **Required tests**
+- `updateDestination_ownedLink_updatesAndEvictsCache()`
+- `updateShortCode_attempt_isRejected()`
+- `deactivateLink_thenResolve_returnsDocumentedStatus()`
+- `update_staleVersion_returns409ProblemDetail()`
+
+---
+
+### TICKET-F10 — Audit trail, operational readiness, and v1 retirement
+**Status:** Backlog.
+
+**Depends on:** TICKET-F01 through TICKET-F09, as applicable.
+
+**Goal:** Make v2 supportable in production and complete the planned retirement of insecure v1 management operations.
+
+**Acceptance criteria**
+- Record immutable audit events for key creation/revocation, link create/update/delete, ownership migration, and administrative actions.
+- Never store raw API keys, full sensitive headers, or unnecessary destination query secrets in logs/audit metadata.
+- Add dashboards/alerts for redirect latency, error rate, database pool pressure, Redis failures, scan failures, rate-limit rejection, and analytics lag.
+- Document backup/restore, key-compromise response, dependency outage behavior, and rollback procedures.
+- Publish and enforce the v1 sunset date; retired v1 management endpoints return a documented retirement response or are removed in a major deployment.
+- Keep existing unversioned short-link redirects working unless a link was explicitly deleted, expired, rejected, or deactivated.
+  **Required tests**
+- `sensitiveOperations_emitSanitizedAuditEvents()`
+- `auditEvent_rawApiKeyOrAuthorizationHeader_isNeverStored()`
+- `retiredV1ManagementEndpoint_returnsDocumentedResponse()`
+- Restore drill and production smoke-test evidence are attached to the ticket/PR.
