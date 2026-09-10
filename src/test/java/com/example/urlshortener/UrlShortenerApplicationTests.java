@@ -162,4 +162,72 @@ class UrlShortenerApplicationTests {
         }
     }
 
+    @Test
+    void redirect_concurrentRequests_commitsEveryClick() throws Exception {
+        seedRedirect("concurrent-link", null);
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/concurrent-link"))
+                .timeout(Duration.ofSeconds(10)).GET().build();
+
+        try (var client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build()) {
+            var responses = java.util.stream.IntStream.range(0, 8)
+                    .mapToObj(index -> client.sendAsync(request, HttpResponse.BodyHandlers.ofString())).toList();
+            for (var future : responses) {
+                var response = future.get(15, java.util.concurrent.TimeUnit.SECONDS);
+                assertThat(response.statusCode()).isEqualTo(302);
+                assertThat(response.headers().firstValue("Location")).contains("https://example.com/redirect?q=1");
+                assertThat(response.body()).isEmpty();
+            }
+        }
+        try (var connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                var statement = connection.prepareStatement(
+                        "select click_count, last_accessed_at from short_url where short_code = ?")) {
+            statement.setString(1, "concurrent-link");
+            try (var row = statement.executeQuery()) {
+                assertThat(row.next()).isTrue();
+                assertThat(row.getLong("click_count")).isEqualTo(8);
+                assertThat(row.getTimestamp("last_accessed_at")).isNotNull();
+            }
+        }
+    }
+
+    @Test
+    void redirect_expiredLink_returns410WithoutChangingAnalytics() throws Exception {
+        seedRedirect("expired-link", Instant.now().minusSeconds(60));
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/expired-link"))
+                .timeout(Duration.ofSeconds(10)).GET().build();
+
+        try (var client = HttpClient.newHttpClient()) {
+            var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            assertThat(response.statusCode()).isEqualTo(410);
+            assertThat(response.headers().firstValue("Location")).isEmpty();
+            assertThat(JsonPath.<String>read(response.body(), "$.detail"))
+                    .isEqualTo("Short URL 'expired-link' has expired");
+        }
+        try (var connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                var statement = connection.prepareStatement(
+                        "select click_count, last_accessed_at from short_url where short_code = ?")) {
+            statement.setString(1, "expired-link");
+            try (var row = statement.executeQuery()) {
+                assertThat(row.next()).isTrue();
+                assertThat(row.getLong("click_count")).isZero();
+                assertThat(row.getTimestamp("last_accessed_at")).isNull();
+            }
+        }
+    }
+
+    private void seedRedirect(String code, Instant expiresAt) throws Exception {
+        try (var connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                var statement = connection.prepareStatement(
+                        "insert into short_url (short_code, original_url, custom_alias, expires_at) values (?, ?, true, ?)")) {
+            statement.setString(1, code);
+            statement.setString(2, "https://example.com/redirect?q=1");
+            statement.setTimestamp(3, expiresAt == null ? null : java.sql.Timestamp.from(expiresAt));
+            statement.executeUpdate();
+        }
+    }
+
 }

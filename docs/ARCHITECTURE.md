@@ -21,7 +21,7 @@ PostgreSQL  ── table: short_url (see migration V1)
 
 Redirect path:
 Client → GET /{code} → [RedirectController] → UrlShortenerService.resolve(code)
-       → 302 Location: originalUrl  (+ async click increment)
+       → 302 Location: originalUrl  (after transactional click increment)
 ```
 
 ## 3. Packages and responsibilities
@@ -70,7 +70,13 @@ Creation validates optional expiry at both the DTO and service boundaries: a
 non-null timestamp must be strictly in the future. Both generated and custom links
 persist it in the existing `expires_at` column and return it in the response;
 `null` means no expiry. Invalid service input raises `InvalidUrlException` with
-`expiresAt must be in the future`. Resolve-time enforcement is part of TICKET-007.
+`expiresAt must be in the future`. Resolution is implemented in TICKET-007: the service looks up the code with a
+pessimistic write lock, rejects unknown/expired links, and calls `recordAccess()`
+on the managed entity. JPA commits the analytics before the controller returns
+302. The row lock prevents lost updates under concurrent redirects. This uses
+synchronous updates to satisfy the ticket's persisted analytics requirements.
+The controller returns `Cache-Control: no-store` to keep subsequent accesses
+passing through expiry checks and analytics.
 
 ## 6. Error handling
 `GlobalExceptionHandler` (`@RestControllerAdvice`) maps:

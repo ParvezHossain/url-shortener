@@ -11,7 +11,9 @@ created short link with an ID-based Base62 code or a custom alias. Aliases are
 case-sensitive and must match `[a-zA-Z0-9_-]{3,16}`; invalid aliases return HTTP 400
 and occupied aliases return HTTP 409. An optional future `expiresAt` timestamp is
 saved and returned; omit it or set it to `null` for no expiry. Past or present expiry
-returns HTTP 400. Redirects (including expiry enforcement) and stats remain planned. See `docs/API_REQUESTS.md` for the implemented contract.
+returns HTTP 400. `GET /{shortCode}` redirects active links with HTTP 302 and records click count
+and last access. Unknown links return 404; expired links return 410 without
+changing analytics. Stats remain planned. See `docs/API_REQUESTS.md` for the implemented contract.
 
 Planned full feature set:
 - Shorten a URL to a short code (auto-generated, Base62) or a custom alias.

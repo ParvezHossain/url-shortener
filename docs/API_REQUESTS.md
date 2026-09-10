@@ -48,8 +48,7 @@ To set expiration, include an ISO-8601 timestamp with a timezone, for example
 `"expiresAt": "2030-12-31T23:59:59Z"` (choose a date in the future). The timestamp
 must be strictly later than the server's current time when validated. This works
 with generated codes and custom aliases; the response includes the saved expiry.
-Omitting `expiresAt` or supplying `null` creates a link with no expiry. Redirect-time
-expiry enforcement will be implemented with the resolver in TICKET-007.
+Omitting `expiresAt` or supplying `null` creates a link with no expiry. Expired links are rejected during redirect without recording an access.
 
 **Errors**
 - `400` — missing, blank, malformed, non-HTTP(S), or over-length destination;
@@ -57,19 +56,24 @@ expiry enforcement will be implemented with the resolver in TICKET-007.
 - `400` — invalid alias pattern, malformed expiry timestamp, or expiry that is not in the future.
 - `409` — the requested alias is already taken, including concurrent claims.
 
-Redirect and stats endpoints below remain planned for their respective tickets.
+Redirect is implemented; stats and deletion remain planned for their respective tickets.
 
 ---
 
 ## 2. Redirect
 `GET /{shortCode}`
 
+**Implemented (TICKET-007):** resolves generated codes and custom aliases, checks
+expiry, and commits one click plus the last-access timestamp before redirecting.
+Concurrent accesses to the same link are serialized to preserve every click.
+
 **Response**
 - `302 Found`, `Location: <originalUrl>` header, empty body.
+- `Cache-Control: no-store` prevents cached redirects from bypassing expiry and analytics.
 
 **Errors**
 - `404` — unknown short code.
-- `410` — short code exists but is past `expiresAt`.
+- `410` — short code exists but is past `expiresAt`; analytics remain unchanged.
 
 ---
 

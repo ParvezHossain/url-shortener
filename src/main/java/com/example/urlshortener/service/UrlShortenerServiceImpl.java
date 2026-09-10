@@ -4,6 +4,8 @@ import com.example.urlshortener.domain.ShortUrl;
 import com.example.urlshortener.dto.request.CreateShortUrlRequest;
 import com.example.urlshortener.dto.response.ShortUrlResponse;
 import com.example.urlshortener.exception.InvalidUrlException;
+import com.example.urlshortener.exception.UrlNotFoundException;
+import com.example.urlshortener.exception.UrlExpiredException;
 import com.example.urlshortener.exception.DuplicateAliasException;
 import com.example.urlshortener.repository.ShortUrlRepository;
 import com.example.urlshortener.util.Base62Encoder;
@@ -64,6 +66,24 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
         log.info("Created short URL with code {}", shortCode);
         return new ShortUrlResponse(shortCode, baseUrl + "/" + shortCode,
                 saved.getOriginalUrl(), saved.getCreatedAt(), saved.getExpiresAt());
+    }
+
+    /**
+     * Resolves an active link and commits its access analytics before returning.
+     * @throws UrlNotFoundException for an unknown code
+     * @throws UrlExpiredException when the link has expired
+     */
+    @Override
+    @Transactional
+    public String resolve(String shortCode) {
+        var url = repository.findByShortCodeForUpdate(shortCode)
+                .orElseThrow(() -> new UrlNotFoundException(shortCode));
+        if (url.isExpired()) {
+            throw new UrlExpiredException(shortCode);
+        }
+        url.recordAccess();
+        log.info("Resolved short URL with code {}", shortCode);
+        return url.getOriginalUrl();
     }
 
     private ShortUrlResponse createCustomAlias(CreateShortUrlRequest request) {

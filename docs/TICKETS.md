@@ -175,6 +175,20 @@ and committed PostgreSQL expiry for generated codes and custom aliases.
 ---
 
 ### TICKET-007 — Resolve / redirect
+**Status:** Complete (verified 2026-09-10).
+
+**Implementation:** Added transactional `resolve` and `GET /{shortCode}` returning
+302 with `Location`, an empty body, and `Cache-Control: no-store`. Unknown codes
+return 404; expired links return 410 without modifying analytics. A pessimistic
+row lock serializes access updates so concurrent redirects preserve every click.
+Analytics are committed synchronously before redirecting; the earlier architecture
+diagram's async increment was updated to match the ticket requirements.
+
+**Verification:** `mvn verify` passes all 230 tests with no failures or skips.
+Includes all required service/controller cases, repository lock lookups, eight
+concurrent HTTP redirects with persisted click counts, and an expired HTTP request
+that leaves PostgreSQL analytics unchanged. No schema or dependency changes.
+
 **Class:** `service.UrlShortenerServiceImpl`, method `resolve(String shortCode)`
 **Goal:** Look up by code, check expiry, increment click count + last-accessed, return original URL.
 **Acceptance criteria**

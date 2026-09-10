@@ -12,4 +12,10 @@ public interface UrlShortenerService {
      * @throws com.example.urlshortener.exception.DuplicateAliasException for an occupied alias
      */
     ShortUrlResponse create(CreateShortUrlRequest request);
+    /**
+     * Resolves a code and records one successful access.
+     * @throws com.example.urlshortener.exception.UrlNotFoundException for an unknown code
+     * @throws com.example.urlshortener.exception.UrlExpiredException for an expired link
+     */
+    String resolve(String shortCode);
 }

@@ -113,4 +113,20 @@ class ShortUrlRepositoryTest {
         assertThat(reloaded.getLastAccessedAt())
                 .isCloseTo(url.getLastAccessedAt(), within(1, ChronoUnit.MICROS));
     }
+    @Test
+    void findByShortCodeForUpdate_existingCode_returnsEntity() {
+        var url = repository.saveAndFlush(new ShortUrl("locked", "https://example.com", false, null));
+        entityManager.clear();
+
+        var found = repository.findByShortCodeForUpdate("locked").orElseThrow();
+
+        assertThat(found.getId()).isEqualTo(url.getId());
+        assertThat(entityManager.getLockMode(found)).isEqualTo(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+    }
+
+    @Test
+    void findByShortCodeForUpdate_unknownCode_returnsEmptyOptional() {
+        assertThat(repository.findByShortCodeForUpdate("unknown")).isEmpty();
+    }
+
 }

@@ -15,6 +15,8 @@ import static org.mockito.Mockito.when;
 import com.example.urlshortener.domain.ShortUrl;
 import com.example.urlshortener.dto.request.CreateShortUrlRequest;
 import com.example.urlshortener.exception.InvalidUrlException;
+import com.example.urlshortener.exception.UrlNotFoundException;
+import com.example.urlshortener.exception.UrlExpiredException;
 import com.example.urlshortener.exception.DuplicateAliasException;
 import java.util.Optional;
 import java.sql.SQLException;
@@ -260,6 +262,59 @@ class UrlShortenerServiceImplTest {
 
         assertThatThrownBy(() -> service.create(new CreateShortUrlRequest("https://example.com", "alias", null)))
                 .isSameAs(violation);
+    }
+
+    @Test
+    void resolve_unknownCode_throwsUrlNotFoundException() {
+        assertThatThrownBy(() -> service.resolve("unknown"))
+                .isInstanceOf(UrlNotFoundException.class)
+                .hasMessage("No short URL found for code 'unknown'");
+    }
+
+    @Test
+    void resolve_expiredCode_throwsUrlExpiredExceptionAndDoesNotIncrementClickCount() {
+        var url = new ShortUrl("expired", "https://example.com", true, Instant.now().minusSeconds(60));
+        url.recordAccess();
+        var lastAccessedAt = url.getLastAccessedAt();
+        when(repository.findByShortCodeForUpdate("expired")).thenReturn(Optional.of(url));
+
+        assertThatThrownBy(() -> service.resolve("expired"))
+                .isInstanceOf(UrlExpiredException.class)
+                .hasMessage("Short URL 'expired' has expired");
+        assertThat(url.getClickCount()).isEqualTo(1);
+        assertThat(url.getLastAccessedAt()).isEqualTo(lastAccessedAt);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void resolve_validCode_returnsOriginalUrl(boolean expiring) {
+        var url = new ShortUrl("My_link-1", "https://example.com/path?q=1#section", true,
+                expiring ? Instant.now().plusSeconds(3600) : null);
+        when(repository.findByShortCodeForUpdate("My_link-1")).thenReturn(Optional.of(url));
+
+        assertThat(service.resolve("My_link-1")).isEqualTo("https://example.com/path?q=1#section");
+    }
+
+    @Test
+    void resolve_validCode_incrementsClickCount() {
+        var url = new ShortUrl("10", "https://example.com", false, null);
+        url.recordAccess();
+        when(repository.findByShortCodeForUpdate("10")).thenReturn(Optional.of(url));
+
+        service.resolve("10");
+
+        assertThat(url.getClickCount()).isEqualTo(2);
+    }
+
+    @Test
+    void resolve_validCode_updatesLastAccessedAt() {
+        var url = new ShortUrl("10", "https://example.com", false, null);
+        when(repository.findByShortCodeForUpdate("10")).thenReturn(Optional.of(url));
+        var before = Instant.now();
+
+        service.resolve("10");
+
+        assertThat(url.getLastAccessedAt()).isBetween(before, Instant.now());
     }
 
     private void assertInvalidAlias(String alias) {
