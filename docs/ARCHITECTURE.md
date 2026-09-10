@@ -78,6 +78,12 @@ synchronous updates to satisfy the ticket's persisted analytics requirements.
 The controller returns `Cache-Control: no-store` to keep subsequent accesses
 passing through expiry checks and analytics.
 
+Statistics use `GET /api/v1/urls/{shortCode}` and a read-only service transaction.
+`getStats` uses the ordinary repository lookup and maps the entity to
+`ShortUrlStatsResponse`; it does not call `resolve`, acquire a write lock, or
+record an access. Expired links remain available for statistics; unknown codes
+raise `UrlNotFoundException` (404).
+
 ## 6. Error handling
 `GlobalExceptionHandler` (`@RestControllerAdvice`) maps:
 | Exception | HTTP status |

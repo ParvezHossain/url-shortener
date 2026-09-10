@@ -56,7 +56,7 @@ Omitting `expiresAt` or supplying `null` creates a link with no expiry. Expired 
 - `400` — invalid alias pattern, malformed expiry timestamp, or expiry that is not in the future.
 - `409` — the requested alias is already taken, including concurrent claims.
 
-Redirect is implemented; stats and deletion remain planned for their respective tickets.
+Redirect and stats are implemented; deletion remains planned for TICKET-009.
 
 ---
 
@@ -79,6 +79,11 @@ Concurrent accesses to the same link are serialized to preserve every click.
 
 ## 3. Get stats for a short URL
 `GET /api/v1/urls/{shortCode}`
+
+**Implemented (TICKET-008):** returns metadata and recorded analytics for any
+existing link, including expired links. Reading stats does not increment clicks
+or change `lastAccessedAt`. A never-visited link has `clickCount: 0` and
+`lastAccessedAt: null`; `expiresAt: null` means no expiry.
 
 **Response `200 OK`**
 ```json

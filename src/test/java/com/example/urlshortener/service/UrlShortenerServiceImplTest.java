@@ -317,6 +317,61 @@ class UrlShortenerServiceImplTest {
         assertThat(url.getLastAccessedAt()).isBetween(before, Instant.now());
     }
 
+    @Test
+    void getStats_unknownCode_throwsUrlNotFoundException() {
+        assertThatThrownBy(() -> service.getStats("unknown"))
+                .isInstanceOf(UrlNotFoundException.class)
+                .hasMessage("No short URL found for code 'unknown'");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void getStats_existingCode_returnsCorrectStatsDto(boolean expired) {
+        var expiresAt = Instant.now().plusSeconds(expired ? -60 : 3600);
+        var url = new ShortUrl("my-link", "https://example.com/path?q=1", true, expiresAt);
+        url.recordAccess();
+        url.recordAccess();
+        when(repository.findByShortCode("my-link")).thenReturn(Optional.of(url));
+
+        var stats = service.getStats("my-link");
+
+        assertThat(stats.shortCode()).isEqualTo("my-link");
+        assertThat(stats.originalUrl()).isEqualTo("https://example.com/path?q=1");
+        assertThat(stats.createdAt()).isEqualTo(url.getCreatedAt());
+        assertThat(stats.expiresAt()).isEqualTo(expiresAt);
+        assertThat(stats.clickCount()).isEqualTo(2);
+        assertThat(stats.lastAccessedAt()).isEqualTo(url.getLastAccessedAt());
+    }
+
+    @Test
+    void getStats_existingCode_doesNotIncrementClickCount() {
+        var url = new ShortUrl("my-link", "https://example.com", true, null);
+        url.recordAccess();
+        var lastAccessedAt = url.getLastAccessedAt();
+        when(repository.findByShortCode("my-link")).thenReturn(Optional.of(url));
+
+        service.getStats("my-link");
+        service.getStats("my-link");
+
+        assertThat(url.getClickCount()).isEqualTo(1);
+        assertThat(url.getLastAccessedAt()).isEqualTo(lastAccessedAt);
+        verify(repository, org.mockito.Mockito.times(2)).findByShortCode("my-link");
+        org.mockito.Mockito.verifyNoMoreInteractions(repository);
+    }
+
+    @Test
+    void getStats_unvisitedPermanentLink_returnsZeroClicksAndNullTimestamps() {
+        var url = new ShortUrl("10", "https://example.com", false, null);
+        when(repository.findByShortCode("10")).thenReturn(Optional.of(url));
+
+        var stats = service.getStats("10");
+
+        assertThat(stats.clickCount()).isZero();
+        assertThat(stats.expiresAt()).isNull();
+        assertThat(stats.lastAccessedAt()).isNull();
+        assertThat(url.getLastAccessedAt()).isNull();
+    }
+
     private void assertInvalidAlias(String alias) {
         assertThatThrownBy(() -> service.create(new CreateShortUrlRequest("https://example.com", alias, null)))
                 .isInstanceOf(InvalidUrlException.class)

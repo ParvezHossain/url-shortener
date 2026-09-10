@@ -218,6 +218,44 @@ class UrlShortenerApplicationTests {
         }
     }
 
+    @Test
+    void getStats_expiredLink_returnsStatsWithoutChangingPersistedAnalytics() throws Exception {
+        seedRedirect("stats-expired", Instant.now().minusSeconds(60));
+        var lastAccessedAt = Instant.now().minusSeconds(120).truncatedTo(ChronoUnit.SECONDS);
+        try (var connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                var statement = connection.prepareStatement(
+                        "update short_url set click_count = 7, last_accessed_at = ? where short_code = ?")) {
+            statement.setTimestamp(1, java.sql.Timestamp.from(lastAccessedAt));
+            statement.setString(2, "stats-expired");
+            statement.executeUpdate();
+        }
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/urls/stats-expired"))
+                .timeout(Duration.ofSeconds(10)).GET().build();
+
+        try (var client = HttpClient.newHttpClient()) {
+            for (int attempt = 0; attempt < 2; attempt++) {
+                var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+                assertThat(response.statusCode()).isEqualTo(200);
+                assertThat(JsonPath.<Integer>read(response.body(), "$.clickCount")).isEqualTo(7);
+                assertThat(JsonPath.<String>read(response.body(), "$.lastAccessedAt"))
+                        .isEqualTo(lastAccessedAt.toString());
+            }
+        }
+        try (var connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                var statement = connection.prepareStatement(
+                        "select click_count, last_accessed_at from short_url where short_code = ?")) {
+            statement.setString(1, "stats-expired");
+            try (var row = statement.executeQuery()) {
+                assertThat(row.next()).isTrue();
+                assertThat(row.getLong("click_count")).isEqualTo(7);
+                assertThat(row.getTimestamp("last_accessed_at").toInstant()).isEqualTo(lastAccessedAt);
+            }
+        }
+    }
+
     private void seedRedirect(String code, Instant expiresAt) throws Exception {
         try (var connection = DriverManager.getConnection(
                 postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());

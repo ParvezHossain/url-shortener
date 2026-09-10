@@ -3,6 +3,7 @@ package com.example.urlshortener.service;
 import com.example.urlshortener.domain.ShortUrl;
 import com.example.urlshortener.dto.request.CreateShortUrlRequest;
 import com.example.urlshortener.dto.response.ShortUrlResponse;
+import com.example.urlshortener.dto.response.ShortUrlStatsResponse;
 import com.example.urlshortener.exception.InvalidUrlException;
 import com.example.urlshortener.exception.UrlNotFoundException;
 import com.example.urlshortener.exception.UrlExpiredException;
@@ -84,6 +85,19 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
         url.recordAccess();
         log.info("Resolved short URL with code {}", shortCode);
         return url.getOriginalUrl();
+    }
+
+    /**
+     * Reads metadata and analytics, including expired links, without changing the entity.
+     * @throws UrlNotFoundException for an unknown code
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public ShortUrlStatsResponse getStats(String shortCode) {
+        var url = repository.findByShortCode(shortCode)
+                .orElseThrow(() -> new UrlNotFoundException(shortCode));
+        return new ShortUrlStatsResponse(url.getShortCode(), url.getOriginalUrl(),
+                url.getCreatedAt(), url.getExpiresAt(), url.getClickCount(), url.getLastAccessedAt());
     }
 
     private ShortUrlResponse createCustomAlias(CreateShortUrlRequest request) {

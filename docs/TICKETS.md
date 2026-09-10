@@ -211,6 +211,18 @@ that leaves PostgreSQL analytics unchanged. No schema or dependency changes.
 ---
 
 ### TICKET-008 — Stats endpoint
+**Status:** Complete (verified 2026-09-10).
+
+**Implementation:** Added `ShortUrlStatsResponse`, read-only `getStats`, and
+`GET /api/v1/urls/{shortCode}` returning HTTP 200 with all documented metadata
+and analytics. Existing expired links remain queryable; unknown codes return 404.
+Reads do not call the resolver or modify click count or last-access time.
+
+**Verification:** `mvn verify` passes all 239 tests with no failures or skips.
+Includes required service/controller cases, expired and unvisited links, nullable
+response fields, and repeated HTTP stats reads with independent PostgreSQL checks
+confirming analytics remain unchanged. No schema or dependency changes.
+
 **Class:** `service.UrlShortenerServiceImpl`, method `getStats(String shortCode)`
 **Goal:** Return click count, timestamps, original URL — without incrementing click count (distinct from `resolve`).
 **Acceptance criteria**

@@ -13,7 +13,8 @@ and occupied aliases return HTTP 409. An optional future `expiresAt` timestamp i
 saved and returned; omit it or set it to `null` for no expiry. Past or present expiry
 returns HTTP 400. `GET /{shortCode}` redirects active links with HTTP 302 and records click count
 and last access. Unknown links return 404; expired links return 410 without
-changing analytics. Stats remain planned. See `docs/API_REQUESTS.md` for the implemented contract.
+changing analytics. `GET /api/v1/urls/{shortCode}` returns metadata and analytics for active or
+expired links without recording a visit. See `docs/API_REQUESTS.md` for the implemented contract.
 
 Planned full feature set:
 - Shorten a URL to a short code (auto-generated, Base62) or a custom alias.

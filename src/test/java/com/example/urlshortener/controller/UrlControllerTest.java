@@ -11,6 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.urlshortener.dto.request.CreateShortUrlRequest;
 import com.example.urlshortener.dto.response.ShortUrlResponse;
+import com.example.urlshortener.dto.response.ShortUrlStatsResponse;
+import com.example.urlshortener.exception.UrlNotFoundException;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import com.example.urlshortener.exception.InvalidUrlException;
 import com.example.urlshortener.exception.DuplicateAliasException;
 import com.example.urlshortener.service.UrlShortenerService;
@@ -154,6 +157,46 @@ class UrlControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("Request body is missing or malformed"));
         verifyNoInteractions(service);
+    }
+
+    @Test
+    void getStats_validCode_returns200WithBody() throws Exception {
+        when(service.getStats("my-link")).thenReturn(new ShortUrlStatsResponse(
+                "my-link", "https://example.com/path", Instant.parse("2026-01-01T00:00:00Z"),
+                Instant.parse("2026-02-01T00:00:00Z"), 42, Instant.parse("2026-01-02T00:00:00Z")));
+
+        mvc.perform(get("/api/v1/urls/my-link"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.shortCode").value("my-link"))
+                .andExpect(jsonPath("$.originalUrl").value("https://example.com/path"))
+                .andExpect(jsonPath("$.createdAt").value("2026-01-01T00:00:00Z"))
+                .andExpect(jsonPath("$.expiresAt").value("2026-02-01T00:00:00Z"))
+                .andExpect(jsonPath("$.clickCount").value(42))
+                .andExpect(jsonPath("$.lastAccessedAt").value("2026-01-02T00:00:00Z"));
+    }
+
+    @Test
+    void getStats_unknownCode_returns404() throws Exception {
+        when(service.getStats("unknown")).thenThrow(new UrlNotFoundException("unknown"));
+
+        mvc.perform(get("/api/v1/urls/unknown"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.detail").value("No short URL found for code 'unknown'"));
+    }
+
+    @Test
+    void getStats_unvisitedPermanentLink_returnsNullExpiryAndLastAccess() throws Exception {
+        when(service.getStats("10")).thenReturn(new ShortUrlStatsResponse(
+                "10", "https://example.com", Instant.parse("2026-01-01T00:00:00Z"), null, 0, null));
+
+        mvc.perform(get("/api/v1/urls/10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clickCount").value(0))
+                .andExpect(jsonPath("$.expiresAt").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.lastAccessedAt").value(org.hamcrest.Matchers.nullValue()));
     }
 
 }

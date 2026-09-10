@@ -2,6 +2,7 @@ package com.example.urlshortener.service;
 
 import com.example.urlshortener.dto.request.CreateShortUrlRequest;
 import com.example.urlshortener.dto.response.ShortUrlResponse;
+import com.example.urlshortener.dto.response.ShortUrlStatsResponse;
 
 /** Defines operations on shortened URLs at the application boundary. */
 public interface UrlShortenerService {
@@ -18,4 +19,10 @@ public interface UrlShortenerService {
      * @throws com.example.urlshortener.exception.UrlExpiredException for an expired link
      */
     String resolve(String shortCode);
+
+    /**
+     * Returns metadata and analytics for an existing link without recording an access.
+     * @throws com.example.urlshortener.exception.UrlNotFoundException for an unknown code
+     */
+    ShortUrlStatsResponse getStats(String shortCode);
 }
