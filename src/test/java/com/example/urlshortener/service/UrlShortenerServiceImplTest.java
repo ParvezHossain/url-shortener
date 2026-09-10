@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -101,11 +102,66 @@ class UrlShortenerServiceImplTest {
         verifyNoInteractions(repository);
     }
 
-    @Test
-    void create_unsupportedExpiry_throwsInvalidUrlException() {
-        assertThatThrownBy(() -> service.create(new CreateShortUrlRequest("https://example.com", null, Instant.MAX)))
-                .isInstanceOf(InvalidUrlException.class);
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = "expiring-link")
+    void create_expiresAtInPast_throwsInvalidUrlException(String alias) {
+        var expiresAt = Instant.now().minusSeconds(60);
+
+        assertThatThrownBy(() -> service.create(new CreateShortUrlRequest("https://example.com", alias, expiresAt)))
+                .isInstanceOf(InvalidUrlException.class)
+                .hasMessage("expiresAt must be in the future");
         verifyNoInteractions(repository);
+    }
+
+    @Test
+    void create_expiresAtEqualToNow_throwsInvalidUrlException() {
+        var now = Instant.parse("2026-09-10T00:00:00Z");
+        try (var time = mockStatic(Instant.class)) {
+            time.when(Instant::now).thenReturn(now);
+
+            assertThatThrownBy(() -> service.create(new CreateShortUrlRequest("https://example.com", null, now)))
+                    .isInstanceOf(InvalidUrlException.class)
+                    .hasMessage("expiresAt must be in the future");
+            verifyNoInteractions(repository);
+        }
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = "expiring-link")
+    void create_expiresAtInFuture_savesSuccessfully(String alias) {
+        var expiresAt = Instant.now().plusSeconds(3600);
+        assertSavedExpiry(alias, expiresAt);
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = "permanent-link")
+    void create_noExpiresAt_savesWithNullExpiry(String alias) {
+        assertSavedExpiry(alias, null);
+    }
+
+    private void assertSavedExpiry(String alias, Instant expiresAt) {
+        when(repository.saveAndFlush(any(ShortUrl.class))).thenAnswer(invocation -> {
+            ShortUrl entity = invocation.getArgument(0);
+            var saved = mock(ShortUrl.class);
+            if (alias == null) {
+                when(saved.getId()).thenReturn(62L);
+            }
+            when(saved.getOriginalUrl()).thenReturn(entity.getOriginalUrl());
+            when(saved.getCreatedAt()).thenReturn(entity.getCreatedAt());
+            when(saved.getExpiresAt()).thenReturn(entity.getExpiresAt());
+            return saved;
+        });
+
+        var response = service.create(new CreateShortUrlRequest("https://example.com", alias, expiresAt));
+
+        var captor = ArgumentCaptor.forClass(ShortUrl.class);
+        verify(repository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getExpiresAt()).isEqualTo(expiresAt);
+        assertThat(response.expiresAt()).isEqualTo(expiresAt);
+        assertThat(response.shortCode()).isEqualTo(alias == null ? "10" : alias);
     }
 
     @Test

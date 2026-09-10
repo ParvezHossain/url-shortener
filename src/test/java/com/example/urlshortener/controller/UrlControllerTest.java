@@ -118,4 +118,42 @@ class UrlControllerTest {
         verifyNoInteractions(service);
     }
 
+    @Test
+    void createShortUrl_futureExpiry_returns201WithExpiry() throws Exception {
+        var expiresAt = Instant.now().plusSeconds(3600).truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+        var request = new CreateShortUrlRequest("https://example.com", null, expiresAt);
+        when(service.create(request)).thenReturn(new ShortUrlResponse("10", "https://sho.rt/10",
+                request.originalUrl(), Instant.now(), expiresAt));
+
+        mvc.perform(post("/api/v1/urls").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"originalUrl":"https://example.com","expiresAt":"%s"}
+                                """.formatted(expiresAt)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.expiresAt").value(expiresAt.toString()));
+    }
+
+    @Test
+    void createShortUrl_pastExpiry_returns400() throws Exception {
+        mvc.perform(post("/api/v1/urls").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"originalUrl":"https://example.com","expiresAt":"2000-01-01T00:00:00Z"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errors[0]").value("expiresAt: must be in the future"));
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void createShortUrl_malformedExpiry_returns400() throws Exception {
+        mvc.perform(post("/api/v1/urls").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"originalUrl":"https://example.com","expiresAt":"not-a-timestamp"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Request body is missing or malformed"));
+        verifyNoInteractions(service);
+    }
+
 }

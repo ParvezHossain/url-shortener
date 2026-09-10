@@ -9,8 +9,9 @@ A self-hosted URL shortener API built with Java 25, Spring Boot 4+, PostgreSQL, 
 Current API: `POST /api/v1/urls` validates an HTTP/HTTPS destination and returns a
 created short link with an ID-based Base62 code or a custom alias. Aliases are
 case-sensitive and must match `[a-zA-Z0-9_-]{3,16}`; invalid aliases return HTTP 400
-and occupied aliases return HTTP 409. Expiry, redirects, and stats remain planned;
-non-null expiry currently returns HTTP 400. See `docs/API_REQUESTS.md` for the implemented contract.
+and occupied aliases return HTTP 409. An optional future `expiresAt` timestamp is
+saved and returned; omit it or set it to `null` for no expiry. Past or present expiry
+returns HTTP 400. Redirects (including expiry enforcement) and stats remain planned. See `docs/API_REQUESTS.md` for the implemented contract.
 
 Planned full feature set:
 - Shorten a URL to a short code (auto-generated, Base62) or a custom alias.

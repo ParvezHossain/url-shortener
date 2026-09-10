@@ -1,6 +1,7 @@
 package com.example.urlshortener.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Pattern;
 import java.time.Instant;
 
@@ -10,5 +11,5 @@ public record CreateShortUrlRequest(
         @Pattern(regexp = "[a-zA-Z0-9_-]{3,16}",
                 message = "must contain 3 to 16 letters, digits, underscores, or hyphens")
         String customAlias,
-        Instant expiresAt) {
+        @Future(message = "must be in the future") Instant expiresAt) {
 }

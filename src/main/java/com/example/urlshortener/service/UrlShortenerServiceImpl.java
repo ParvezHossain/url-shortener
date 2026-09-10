@@ -10,6 +10,7 @@ import com.example.urlshortener.util.Base62Encoder;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.UUID;
+import java.time.Instant;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.slf4j.Logger;
@@ -49,15 +50,15 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
             throw new InvalidUrlException("Request must not be null");
         }
         validateUrl(request.originalUrl());
-        if (request.expiresAt() != null) {
-            throw new InvalidUrlException("Expiry is not supported yet");
+        if (request.expiresAt() != null && !request.expiresAt().isAfter(Instant.now())) {
+            throw new InvalidUrlException("expiresAt must be in the future");
         }
         if (request.customAlias() != null) {
             return createCustomAlias(request);
         }
         // Reserved character keeps temporary codes separate from public Base62 codes.
         String temporaryCode = "~" + UUID.randomUUID().toString().replace("-", "").substring(0, 15);
-        var saved = repository.saveAndFlush(new ShortUrl(temporaryCode, request.originalUrl(), false, null));
+        var saved = repository.saveAndFlush(new ShortUrl(temporaryCode, request.originalUrl(), false, request.expiresAt()));
         String shortCode = Base62Encoder.encode(saved.getId());
         repository.updateShortCode(saved.getId(), shortCode);
         log.info("Created short URL with code {}", shortCode);
@@ -76,7 +77,7 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
         ShortUrl saved;
         try {
             // Flush here so concurrent claims are translated before transaction completion.
-            saved = repository.saveAndFlush(new ShortUrl(alias, request.originalUrl(), true, null));
+            saved = repository.saveAndFlush(new ShortUrl(alias, request.originalUrl(), true, request.expiresAt()));
         } catch (DataIntegrityViolationException ex) {
             for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
                 if (cause instanceof ConstraintViolationException violation

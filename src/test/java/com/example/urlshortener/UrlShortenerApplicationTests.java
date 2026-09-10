@@ -10,6 +10,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
@@ -72,7 +76,7 @@ class UrlShortenerApplicationTests {
             try (var connection = DriverManager.getConnection(
                     postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
                     var statement = connection.prepareStatement(
-                            "select id, original_url, created_at, custom_alias, click_count from short_url where short_code = ?")) {
+                            "select id, original_url, created_at, custom_alias, click_count, expires_at from short_url where short_code = ?")) {
                 statement.setString(1, code);
                 try (var row = statement.executeQuery()) {
                     assertThat(row.next()).isTrue();
@@ -80,6 +84,7 @@ class UrlShortenerApplicationTests {
                     assertThat(row.getString("original_url")).isEqualTo("https://example.com/integration");
                     assertThat(row.getTimestamp("created_at")).isNotNull();
                     assertThat(row.getBoolean("custom_alias")).isFalse();
+                    assertThat(row.getTimestamp("expires_at")).isNull();
                     assertThat(row.getLong("click_count")).isZero();
                     assertThat(row.next()).isFalse();
                 }
@@ -110,12 +115,47 @@ class UrlShortenerApplicationTests {
             try (var connection = DriverManager.getConnection(
                     postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
                     var statement = connection.prepareStatement(
-                            "select original_url, custom_alias from short_url where short_code = ?")) {
+                            "select original_url, custom_alias, expires_at from short_url where short_code = ?")) {
                 statement.setString(1, "My_link-1");
                 try (var row = statement.executeQuery()) {
                     assertThat(row.next()).isTrue();
                     assertThat(row.getString("original_url")).isEqualTo("https://example.com/custom");
                     assertThat(row.getBoolean("custom_alias")).isTrue();
+                    assertThat(row.getTimestamp("expires_at")).isNull();
+                    assertThat(row.next()).isFalse();
+                }
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void createShortUrl_futureExpiry_commitsExpiryToDatabase(boolean customAlias) throws Exception {
+        var expiresAt = Instant.now().plusSeconds(3600).truncatedTo(ChronoUnit.SECONDS);
+        String aliasJson = customAlias ? "\"expires-link\"" : "null";
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/urls"))
+                .header("Content-Type", "application/json")
+                .timeout(Duration.ofSeconds(10))
+                .POST(HttpRequest.BodyPublishers.ofString("""
+                        {"originalUrl":"https://example.com/expiry","customAlias":%s,"expiresAt":"%s"}
+                        """.formatted(aliasJson, expiresAt)))
+                .build();
+
+        try (var client = HttpClient.newHttpClient()) {
+            var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            assertThat(response.statusCode()).isEqualTo(201);
+            assertThat(JsonPath.<String>read(response.body(), "$.expiresAt")).isEqualTo(expiresAt.toString());
+            String code = JsonPath.read(response.body(), "$.shortCode");
+            try (var connection = DriverManager.getConnection(
+                    postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                    var statement = connection.prepareStatement(
+                            "select expires_at, custom_alias from short_url where short_code = ?")) {
+                statement.setString(1, code);
+                try (var row = statement.executeQuery()) {
+                    assertThat(row.next()).isTrue();
+                    assertThat(row.getTimestamp("expires_at").toInstant()).isEqualTo(expiresAt);
+                    assertThat(row.getBoolean("custom_alias")).isEqualTo(customAlias);
                     assertThat(row.next()).isFalse();
                 }
             }

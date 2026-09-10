@@ -150,6 +150,19 @@ that verifies committed alias metadata and rejection of a repeated request.
 ---
 
 ### TICKET-006 — Expiration support
+**Status:** Creation acceptance criteria complete (verified 2026-09-10).
+
+**Implementation:** Optional expiry is validated at the DTO and service boundaries.
+Past or present timestamps are rejected; direct service calls raise
+`InvalidUrlException` with `expiresAt must be in the future`. Generated codes and
+custom aliases both persist and return future expiry; omitted/null expiry remains
+null (no expiration). The existing column is reused without a schema change.
+Resolve-time enforcement is covered by TICKET-007, which introduces the resolver.
+
+**Verification:** `mvn verify` passes all 217 tests with no failures or skips.
+Tests cover past, present, future, and null expiry, HTTP validation/serialization,
+and committed PostgreSQL expiry for generated codes and custom aliases.
+
 **Goal:** Optional `expiresAt` on create; enforced on resolve.
 **Acceptance criteria**
 - `expiresAt` in the past at creation time → `InvalidUrlException` ("expiresAt must be in the future").

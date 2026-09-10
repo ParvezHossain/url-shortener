@@ -66,6 +66,12 @@ Index: unique index on `short_code` (lookup path is always by code).
   `uq_short_url_short_code` is also translated to 409 to handle concurrent claims.
   Invalid aliases raise `InvalidUrlException` (400) for direct service callers.
 
+Creation validates optional expiry at both the DTO and service boundaries: a
+non-null timestamp must be strictly in the future. Both generated and custom links
+persist it in the existing `expires_at` column and return it in the response;
+`null` means no expiry. Invalid service input raises `InvalidUrlException` with
+`expiresAt must be in the future`. Resolve-time enforcement is part of TICKET-007.
+
 ## 6. Error handling
 `GlobalExceptionHandler` (`@RestControllerAdvice`) maps:
 | Exception | HTTP status |

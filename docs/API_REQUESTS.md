@@ -8,7 +8,7 @@ All bodies are JSON. All error responses follow RFC 7807 `ProblemDetail`.
 ## 1. Create a short URL
 `POST /api/v1/urls`
 
-**Implemented scope (TICKET-004/005):** generated codes or custom aliases for absolute HTTP/HTTPS URLs
+**Implemented scope (TICKET-004/005/006):** generated codes or custom aliases for absolute HTTP/HTTPS URLs
 with a host, up to 2048 characters by default (`app.short-code.max-original-url-length`).
 
 **Request**
@@ -44,10 +44,17 @@ curl -i -X POST http://localhost:8080/api/v1/urls \
   -d '{"originalUrl":"https://example.com/path","customAlias":"My_link-1"}'
 ```
 
+To set expiration, include an ISO-8601 timestamp with a timezone, for example
+`"expiresAt": "2030-12-31T23:59:59Z"` (choose a date in the future). The timestamp
+must be strictly later than the server's current time when validated. This works
+with generated codes and custom aliases; the response includes the saved expiry.
+Omitting `expiresAt` or supplying `null` creates a link with no expiry. Redirect-time
+expiry enforcement will be implemented with the resolver in TICKET-007.
+
 **Errors**
 - `400` — missing, blank, malformed, non-HTTP(S), or over-length destination;
   missing/malformed JSON body.
-- `400` — invalid alias pattern or non-null `expiresAt` (expiry support belongs to TICKET-006).
+- `400` — invalid alias pattern, malformed expiry timestamp, or expiry that is not in the future.
 - `409` — the requested alias is already taken, including concurrent claims.
 
 Redirect and stats endpoints below remain planned for their respective tickets.
