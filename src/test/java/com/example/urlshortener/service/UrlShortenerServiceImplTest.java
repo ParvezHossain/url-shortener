@@ -372,6 +372,26 @@ class UrlShortenerServiceImplTest {
         assertThat(url.getLastAccessedAt()).isNull();
     }
 
+    @Test
+    void delete_unknownCode_throwsUrlNotFoundException() {
+        assertThatThrownBy(() -> service.delete("unknown"))
+                .isInstanceOf(UrlNotFoundException.class)
+                .hasMessage("No short URL found for code 'unknown'");
+        verify(repository, never()).delete(any(ShortUrl.class));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void delete_existingCode_removesEntity(boolean expired) {
+        var url = new ShortUrl("my-link", "https://example.com", true,
+                expired ? Instant.now().minusSeconds(60) : null);
+        when(repository.findByShortCodeForUpdate("my-link")).thenReturn(Optional.of(url));
+
+        service.delete("my-link");
+
+        verify(repository).delete(url);
+    }
+
     private void assertInvalidAlias(String alias) {
         assertThatThrownBy(() -> service.create(new CreateShortUrlRequest("https://example.com", alias, null)))
                 .isInstanceOf(InvalidUrlException.class)

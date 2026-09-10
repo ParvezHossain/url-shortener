@@ -199,4 +199,23 @@ class UrlControllerTest {
                 .andExpect(jsonPath("$.lastAccessedAt").value(org.hamcrest.Matchers.nullValue()));
     }
 
+    @Test
+    void deleteShortUrl_validCode_returns204() throws Exception {
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/urls/my-link"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+        org.mockito.Mockito.verify(service).delete("my-link");
+    }
+
+    @Test
+    void deleteShortUrl_unknownCode_returns404() throws Exception {
+        org.mockito.Mockito.doThrow(new UrlNotFoundException("unknown")).when(service).delete("unknown");
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/urls/unknown"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.detail").value("No short URL found for code 'unknown'"));
+    }
+
 }

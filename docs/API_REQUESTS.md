@@ -56,7 +56,7 @@ Omitting `expiresAt` or supplying `null` creates a link with no expiry. Expired 
 - `400` — invalid alias pattern, malformed expiry timestamp, or expiry that is not in the future.
 - `409` — the requested alias is already taken, including concurrent claims.
 
-Redirect and stats are implemented; deletion remains planned for TICKET-009.
+Creation, redirect, stats, and deletion are implemented.
 
 ---
 
@@ -104,6 +104,14 @@ or change `lastAccessedAt`. A never-visited link has `clickCount: 0` and
 
 ## 4. Delete a short URL
 `DELETE /api/v1/urls/{shortCode}`
+
+**Implemented (TICKET-009):** permanently removes the matching link and its
+analytics, including expired links. After deletion, redirect and stats requests
+return 404. Repeating deletion returns 404, not 204.
+
+```bash
+curl -i -X DELETE http://localhost:8080/api/v1/urls/my-link
+```
 
 **Response**
 - `204 No Content`

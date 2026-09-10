@@ -14,7 +14,8 @@ saved and returned; omit it or set it to `null` for no expiry. Past or present e
 returns HTTP 400. `GET /{shortCode}` redirects active links with HTTP 302 and records click count
 and last access. Unknown links return 404; expired links return 410 without
 changing analytics. `GET /api/v1/urls/{shortCode}` returns metadata and analytics for active or
-expired links without recording a visit. See `docs/API_REQUESTS.md` for the implemented contract.
+expired links without recording a visit. `DELETE /api/v1/urls/{shortCode}` removes
+a link and its analytics, returning 204; unknown or already-deleted codes return 404. See `docs/API_REQUESTS.md` for the implemented contract.
 
 Planned full feature set:
 - Shorten a URL to a short code (auto-generated, Base62) or a custom alias.

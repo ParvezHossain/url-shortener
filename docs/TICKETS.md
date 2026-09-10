@@ -239,6 +239,19 @@ confirming analytics remain unchanged. No schema or dependency changes.
 ---
 
 ### TICKET-009 — Delete short URL
+**Status:** Complete (verified 2026-09-10).
+
+**Implementation:** Added transactional `delete` and
+`DELETE /api/v1/urls/{shortCode}` returning HTTP 204 with an empty body. Existing
+links (including expired links) and their analytics are removed. Unknown codes
+and repeated deletion return 404. Reuses the redirect row lock to coordinate
+concurrent deletes and redirects. No schema or dependency changes.
+
+**Verification:** `mvn verify` passes all 246 tests with no failures or skips.
+Includes required service/controller cases, expired-link deletion, committed
+PostgreSQL deletion, subsequent delete/redirect/stats returning 404, and concurrent
+deletes returning exactly one 204 and one 404.
+
 **Class:** `service.UrlShortenerServiceImpl`, method `delete(String shortCode)`
 **Acceptance criteria**
 - Unknown code → `UrlNotFoundException`.

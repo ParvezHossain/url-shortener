@@ -256,6 +256,51 @@ class UrlShortenerApplicationTests {
         }
     }
 
+    @Test
+    void deleteShortUrl_existingLink_commitsDeletionAndReturns404OnRepeat() throws Exception {
+        seedRedirect("delete-link", null);
+        var uri = URI.create("http://localhost:" + port + "/api/v1/urls/delete-link");
+        var request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(10)).DELETE().build();
+
+        try (var client = HttpClient.newHttpClient()) {
+            var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            assertThat(response.statusCode()).isEqualTo(204);
+            assertThat(response.body()).isEmpty();
+            try (var connection = DriverManager.getConnection(
+                    postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                    var statement = connection.prepareStatement("select id from short_url where short_code = ?")) {
+                statement.setString(1, "delete-link");
+                try (var row = statement.executeQuery()) {
+                    assertThat(row.next()).isFalse();
+                }
+            }
+            var repeated = client.send(request, HttpResponse.BodyHandlers.ofString());
+            assertThat(repeated.statusCode()).isEqualTo(404);
+            for (var path : java.util.List.of("/delete-link", "/api/v1/urls/delete-link")) {
+                var lookup = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                        .timeout(Duration.ofSeconds(10)).GET().build();
+                assertThat(client.send(lookup, HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(404);
+            }
+        }
+    }
+
+    @Test
+    void deleteShortUrl_concurrentDeletes_returnsOne204AndOne404() throws Exception {
+        seedRedirect("delete-race", null);
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/urls/delete-race"))
+                .timeout(Duration.ofSeconds(10)).DELETE().build();
+
+        try (var client = HttpClient.newHttpClient()) {
+            var first = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+            var second = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+
+            assertThat(java.util.List.of(first.get(15, java.util.concurrent.TimeUnit.SECONDS).statusCode(),
+                    second.get(15, java.util.concurrent.TimeUnit.SECONDS).statusCode()))
+                    .containsExactlyInAnyOrder(204, 404);
+        }
+    }
+
     private void seedRedirect(String code, Instant expiresAt) throws Exception {
         try (var connection = DriverManager.getConnection(
                 postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());

@@ -84,6 +84,12 @@ Statistics use `GET /api/v1/urls/{shortCode}` and a read-only service transactio
 record an access. Expired links remain available for statistics; unknown codes
 raise `UrlNotFoundException` (404).
 
+Deletion uses `DELETE /api/v1/urls/{shortCode}` and a transactional service method.
+It acquires the same row lock as resolution, then removes the entity and its
+analytics. The controller returns 204 after commit. Unknown codes and repeated
+deletions return 404; expired links can also be deleted. Concurrent deletes of
+one existing link produce one success and one not-found response.
+
 ## 6. Error handling
 `GlobalExceptionHandler` (`@RestControllerAdvice`) maps:
 | Exception | HTTP status |

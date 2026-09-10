@@ -25,4 +25,10 @@ public interface UrlShortenerService {
      * @throws com.example.urlshortener.exception.UrlNotFoundException for an unknown code
      */
     ShortUrlStatsResponse getStats(String shortCode);
+    /**
+     * Removes an existing link and its analytics.
+     * @throws com.example.urlshortener.exception.UrlNotFoundException for an unknown or deleted code
+     */
+    void delete(String shortCode);
+
 }

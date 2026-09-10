@@ -100,6 +100,19 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
                 url.getCreatedAt(), url.getExpiresAt(), url.getClickCount(), url.getLastAccessedAt());
     }
 
+    /**
+     * Deletes the matching link in a transaction coordinated with redirect updates.
+     * @throws UrlNotFoundException for an unknown or previously deleted code
+     */
+    @Override
+    @Transactional
+    public void delete(String shortCode) {
+        var url = repository.findByShortCodeForUpdate(shortCode)
+                .orElseThrow(() -> new UrlNotFoundException(shortCode));
+        repository.delete(url);
+        log.info("Deleted short URL with code {}", shortCode);
+    }
+
     private ShortUrlResponse createCustomAlias(CreateShortUrlRequest request) {
         String alias = request.customAlias();
         if (!alias.matches("[a-zA-Z0-9_-]{3,16}")) {
