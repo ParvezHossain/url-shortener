@@ -18,13 +18,19 @@ class FrontendControllerTest {
     }
 
     @Test
-    void index_packagedFrontend_returnsHtmlWithRevalidation() {
+    void index_packagedFrontend_returnsHtmlWithRevalidation() throws Exception {
         var response = new FrontendController("https://links.example.test").index();
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.TEXT_HTML);
         assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-cache");
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getFilename()).isEqualTo("index.html");
+        assertThat(response.getBody()).contains("<script nonce=", "id=\"root\"");
+        assertThat(response.getHeaders().getFirst("Content-Security-Policy"))
+                .contains("strict-dynamic", "frame-ancestors 'none'")
+                .doesNotContain("unsafe-inline", "unsafe-eval");
+        assertThat(new FrontendController("https://links.example.test").index().getHeaders()
+                .getFirst("Content-Security-Policy"))
+                .isNotEqualTo(response.getHeaders().getFirst("Content-Security-Policy"));
     }
 }

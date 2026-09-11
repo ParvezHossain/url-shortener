@@ -1,5 +1,11 @@
+import {
+  apiRequest,
+  readJson,
+  ApiFailure,
+  failureMessage,
+} from "../api/request";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Alert, Button, Card, Input, Modal } from "./ui";
+import { Alert, Button, Card, Input, Modal, Skeleton } from "./ui";
 
 type Stats = {
   shortCode: string;
@@ -74,7 +80,7 @@ export function AnalyticsLookup({
 
   async function load(value: string, abort: AbortController) {
     try {
-      const response = await fetch(
+      const response = await apiRequest(
         `/api/v1/urls/${encodeURIComponent(value)}`,
         { signal: abort.signal, cache: "no-store" },
       );
@@ -87,18 +93,17 @@ export function AnalyticsLookup({
         return;
       }
       if (!response.ok) throw new Error("Lookup failed");
-      const body = await response.json();
-      if (!isStats(body, value)) throw new Error("Invalid analytics response");
+      const body = await readJson(response);
+      if (!isStats(body, value)) throw new ApiFailure("malformed");
       if (!abort.signal.aborted) {
         setNow(Date.now());
         setState({ kind: "success", stats: body });
       }
-    } catch {
+    } catch (error) {
       if (!abort.signal.aborted)
         setState({
           kind: "error",
-          message:
-            "Couldn’t load analytics. Check your connection and try again.",
+          message: failureMessage(error),
         });
     }
   }
@@ -175,7 +180,7 @@ export function AnalyticsLookup({
     setDeleting(true);
     setDeleteError("");
     try {
-      const response = await fetch(
+      const response = await apiRequest(
         `/api/v1/urls/${encodeURIComponent(target)}`,
         { method: "DELETE" },
       );
@@ -192,10 +197,11 @@ export function AnalyticsLookup({
       });
       setCode("");
       input.current?.querySelector("input")?.focus();
-    } catch {
+    } catch (error) {
       if (active.current)
         setDeleteError(
-          "Couldn’t confirm deletion. Check your connection and try again. Your link may already have been deleted.",
+          failureMessage(error) +
+            " Couldn’t confirm deletion. Your link may already have been deleted.",
         );
     } finally {
       deleteLock.current = false;
@@ -242,74 +248,94 @@ export function AnalyticsLookup({
           </Button>
         </form>
       </Card>
-      {state.kind === "empty" && (
-        <p className="muted">Enter a short code to get started.</p>
+      <div className="analytics-result-slot">
+        {state.kind === "loading" && (
+          <div aria-hidden="true" className="analytics-placeholder">
+            <Skeleton />
+            <Skeleton />
+            <Skeleton />
+          </div>
+        )}
+        {state.kind === "empty" && (
+          <p className="muted">Enter a short code to get started.</p>
+        )}
+        {(state.kind === "error" || state.kind === "missing") && (
+          <Alert tone="error">{state.message}</Alert>
+        )}
+        {state.kind === "deleted" && (
+          <Alert tone="success">{state.message}</Alert>
+        )}
+        {stats && (
+          <Card className="analytics-details">
+            <h2>
+              Details for <span>{stats.shortCode}</span>
+            </h2>
+            <p role="status">
+              {stats.expiresAt && Date.parse(stats.expiresAt) <= now
+                ? "Expired"
+                : "Active"}{" "}
+              · {stats.customAlias ? "Custom alias" : "Generated code"}
+            </p>
+            <p className="click-total">
+              <strong>{stats.clickCount.toLocaleString()}</strong> total clicks
+            </p>
+            {stats.clickCount === 0 && <p className="muted">No visits yet.</p>}
+            <dl className="result-metadata">
+              <div>
+                <dt>Short URL</dt>
+                <dd>{stats.shortUrl}</dd>
+              </div>
+              <div>
+                <dt>Original URL</dt>
+                <dd>{stats.originalUrl}</dd>
+              </div>
+              <div>
+                <dt>Created</dt>
+                <dd>
+                  <Timestamp value={stats.createdAt} empty="Unavailable" />
+                </dd>
+              </div>
+              <div>
+                <dt>Last accessed</dt>
+                <dd>
+                  <Timestamp
+                    value={stats.lastAccessedAt}
+                    empty="Never visited"
+                  />
+                </dd>
+              </div>
+              <div>
+                <dt>Expires</dt>
+                <dd>
+                  <Timestamp value={stats.expiresAt} empty="Never expires" />
+                </dd>
+              </div>
+            </dl>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (!deleteLock.current) {
+                  setConfirmation(stats);
+                  setDeleteError("");
+                }
+              }}
+            >
+              Delete link
+            </Button>
+          </Card>
+        )}
+      </div>
+      {!confirmation && deleteError && (
+        <Alert tone="error">{deleteError}</Alert>
       )}
-      {(state.kind === "error" || state.kind === "missing") && (
-        <Alert tone="error">{state.message}</Alert>
-      )}
-      {state.kind === "deleted" && (
-        <Alert tone="success">{state.message}</Alert>
-      )}
-      {stats && (
-        <Card className="analytics-details">
-          <h2>
-            Details for <span>{stats.shortCode}</span>
-          </h2>
-          <p role="status">
-            {stats.expiresAt && Date.parse(stats.expiresAt) <= now
-              ? "Expired"
-              : "Active"}{" "}
-            · {stats.customAlias ? "Custom alias" : "Generated code"}
-          </p>
-          <p className="click-total">
-            <strong>{stats.clickCount.toLocaleString()}</strong> total clicks
-          </p>
-          {stats.clickCount === 0 && <p className="muted">No visits yet.</p>}
-          <dl className="result-metadata">
-            <div>
-              <dt>Short URL</dt>
-              <dd>{stats.shortUrl}</dd>
-            </div>
-            <div>
-              <dt>Original URL</dt>
-              <dd>{stats.originalUrl}</dd>
-            </div>
-            <div>
-              <dt>Created</dt>
-              <dd>
-                <Timestamp value={stats.createdAt} empty="Unavailable" />
-              </dd>
-            </div>
-            <div>
-              <dt>Last accessed</dt>
-              <dd>
-                <Timestamp value={stats.lastAccessedAt} empty="Never visited" />
-              </dd>
-            </div>
-            <div>
-              <dt>Expires</dt>
-              <dd>
-                <Timestamp value={stats.expiresAt} empty="Never expires" />
-              </dd>
-            </div>
-          </dl>
-          <Button
-            variant="danger"
-            onClick={() => {
-              setConfirmation(stats);
-              setDeleteError("");
-            }}
-          >
-            Delete link
-          </Button>
-        </Card>
+      {deleting && !confirmation && (
+        <p role="status">Deletion is still in progress.</p>
       )}
       <Modal
         open={!!confirmation}
         title="Delete this link?"
         onClose={() => {
-          if (!deleteLock.current) setConfirmation(null);
+          setConfirmation(null);
         }}
       >
         <p>

@@ -207,6 +207,15 @@ status updates when expiry is reached while the page is open. Lookup never
 opens the redirect or adds a click. This is a single-link lookup.
 
 **Delete link** opens a dialog naming the exact code and explaining permanent
-removal. Only **Delete permanently** sends DELETE; Cancel or Escape leaves it
-untouched. Submitted requests cannot be cancelled. Successful deletion clears
+removal. Only **Delete permanently** sends DELETE. Before confirmation,
+Cancel or Escape leaves the link untouched. After confirmation, Escape closes
+the dialog but the submitted request continues; the page reports its outcome. Successful deletion clears
 the result; failures allow explicit retry. No link data enters browser storage.
+
+### Accessibility and production quality
+
+See [Frontend quality checks](docs/FRONTEND_QUALITY.md) for browser tests,
+Lighthouse thresholds, local commands, and report locations. The frontend uses
+a strict nonce-based CSP, external scripts, bounded requests, safe recovery
+messages, and an unexpected-error boundary. CI runs axe, keyboard/responsive
+workflows, and Lighthouse against the packaged application.

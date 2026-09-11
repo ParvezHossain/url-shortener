@@ -788,3 +788,29 @@ dialog::backdrop {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+/* Reserve the primary workflow area across request/result transitions. */
+.creation-card {
+  min-height: 42rem;
+}
+.analytics-result-slot {
+  min-height: 43rem;
+}
+.analytics-placeholder {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-8);
+}
+.analytics-placeholder .skeleton {
+  min-height: 5rem;
+}
+.recovery-page {
+  padding-block: var(--space-16);
+}
+@media (max-width: 40rem) {
+  .creation-card {
+    min-height: 49rem;
+  }
+  .analytics-result-slot {
+    min-height: 49rem;
+  }
+}

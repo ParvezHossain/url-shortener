@@ -145,16 +145,40 @@ export function Modal({
   const titleId = useId();
   useEffect(() => {
     const dialog = ref.current!;
+    const trigger =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
     return () => {
-      if (dialog.open) dialog.close();
+      if (dialog.open) {
+        dialog.close();
+        if (trigger?.isConnected) trigger.focus();
+      }
     };
   }, [open]);
   return (
     <dialog
       ref={ref}
       aria-labelledby={titleId}
+      onKeyDown={(event) => {
+        if (event.key !== "Tab") return;
+        const items = Array.from(
+          ref.current!.querySelectorAll<HTMLElement>(
+            'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
+          ),
+        ).filter((item) => item.getClientRects().length > 0);
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }}
       onCancel={(event) => {
         event.preventDefault();
         onClose();

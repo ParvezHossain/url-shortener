@@ -544,7 +544,16 @@ overflow. Temporary smoke-test services were removed after verification.
 ---
 
 ### TICKET-018 — Responsive quality, accessibility, and UI hardening
-**Status:** Backlog.
+**Status:** Complete (2026-09-11). Verified with `mvn verify` (261 Java and 71 frontend tests), 16 production browser tests, and six Lighthouse runs (Performance 95; Accessibility, Best Practices, and SEO 100).
+
+**Implementation:** Added a safe render-error boundary, bounded API transport
+with distinct recovery messages, stable loading/result slots, and explicit
+modal focus wrapping/restoration. Escape can dismiss a pending deletion dialog
+without cancelling the submitted request. Fixed the analytics skip link so it
+preserves routing. Moved theme initialization to an external script and added
+per-response nonces with a strict CSP. Added development-only Playwright/axe
+and Lighthouse CI tooling, quality gates in the existing workflow, and local
+report artifacts. No new production dependency or schema change.
 
 **Depends on:** TICKET-015 through TICKET-017.
 

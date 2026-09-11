@@ -54,6 +54,19 @@ class FrontendProductionTest {
             assertThat(response.headers().firstValue("Content-Type").orElseThrow()).contains("text/html");
             assertThat(response.body()).contains("Shortly", "id=\"root\"").doesNotContain("/src/main.tsx");
 
+            String policy = response.headers().firstValue("Content-Security-Policy").orElseThrow();
+            var nonce = Pattern.compile("'nonce-([^']+)'").matcher(policy);
+            assertThat(nonce.find()).isTrue();
+            var scripts = Pattern.compile("<script([^>]*)>([\\s\\S]*?)</script>").matcher(response.body());
+            int scriptCount = 0;
+            while (scripts.find()) {
+                assertThat(scripts.group(1)).contains("nonce=\"" + nonce.group(1) + "\"", "src=");
+                assertThat(scripts.group(2)).isBlank();
+                scriptCount++;
+            }
+            assertThat(scriptCount).isGreaterThanOrEqualTo(2);
+            assertThat(policy).doesNotContain("unsafe-inline", "unsafe-eval");
+
             var assets = Pattern.compile("(?:src|href)=\"(/assets/[^\"]+\\.(?:js|css))\"")
                     .matcher(response.body());
             int count = 0;

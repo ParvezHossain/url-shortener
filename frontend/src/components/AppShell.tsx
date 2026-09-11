@@ -16,7 +16,14 @@ export function AppShell() {
   const code = new URLSearchParams(hash.split("?")[1] ?? "").get("code") ?? "";
   return (
     <div className="app-shell">
-      <a className="skip-link" href="#main">
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={(event) => {
+          event.preventDefault();
+          document.getElementById("main")?.focus();
+        }}
+      >
         Skip to content
       </a>
       <header className="site-header">

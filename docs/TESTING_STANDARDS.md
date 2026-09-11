@@ -51,3 +51,10 @@ requests the generated HTML and referenced JavaScript/CSS from a real Spring
 Boot HTTP server with Testcontainers PostgreSQL, and checks that unknown short
 codes still return the API's 404 response. Native dialog focus containment and
 responsive appearance should additionally be checked in a real browser.
+
+
+Production UI quality gates use Playwright plus axe and Lighthouse CI; see
+`FRONTEND_QUALITY.md`. Browser tests operate against an isolated running app,
+create their own uniquely named fixtures, and delete only those fixtures.
+Fault-state tests intercept requests instead of requiring production outages.
+Lighthouse runs sequentially after functional tests to reduce measurement noise.

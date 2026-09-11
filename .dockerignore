@@ -10,3 +10,8 @@ target
 frontend/node_modules/
 frontend/dist/
 frontend/*.tsbuildinfo
+
+frontend/playwright-report/
+frontend/test-results/
+frontend/.lighthouseci/
+frontend/lighthouse-report/

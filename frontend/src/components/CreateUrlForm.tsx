@@ -1,3 +1,9 @@
+import {
+  apiRequest,
+  readJson,
+  ApiFailure,
+  failureMessage,
+} from "../api/request";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { CreationResult, type CreatedLink } from "./CreationResult";
 import { Alert, Button, Card, Input } from "./ui";
@@ -57,9 +63,11 @@ export function CreateUrlForm() {
     const abort = new AbortController();
     async function loadConfig() {
       try {
-        const response = await fetch("/ui/config", { signal: abort.signal });
+        const response = await apiRequest("/ui/config", {
+          signal: abort.signal,
+        });
         if (!response.ok) throw new Error("Configuration unavailable");
-        const config = await response.json();
+        const config = await readJson(response);
         if (!validHttpUrl(config.publicBaseUrl))
           throw new Error("Invalid public URL");
         if (!abort.signal.aborted)
@@ -109,7 +117,7 @@ export function CreateUrlForm() {
     setErrors({});
     setMessage("");
     try {
-      const response = await fetch("/api/v1/urls", {
+      const response = await apiRequest("/api/v1/urls", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -123,7 +131,7 @@ export function CreateUrlForm() {
             : {}),
         }),
       });
-      const body = await response.json().catch(() => ({}));
+      const body = await readJson(response);
       if (response.ok) {
         if (
           !validHttpUrl(body.shortUrl) ||
@@ -136,7 +144,7 @@ export function CreateUrlForm() {
             (typeof body.expiresAt !== "string" ||
               !Number.isFinite(Date.parse(body.expiresAt))))
         )
-          throw new Error("Invalid success response");
+          throw new ApiFailure("malformed");
         setResult({ ...body, customAlias: Boolean(fields.customAlias) });
       } else if (response.status === 409) {
         showErrors(
@@ -167,8 +175,8 @@ export function CreateUrlForm() {
       } else {
         setMessage(retryMessage);
       }
-    } catch {
-      setMessage(retryMessage);
+    } catch (error) {
+      setMessage(failureMessage(error) + " " + retryMessage);
     } finally {
       inFlight.current = false;
       setPending(false);

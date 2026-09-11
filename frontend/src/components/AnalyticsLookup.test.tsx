@@ -160,9 +160,10 @@ test("DeleteLink_confirmed_deletesAndClearsStats", async () => {
   await waitFor(() =>
     expect(screen.getByRole("status")).toHaveTextContent("permanently deleted"),
   );
-  expect(api).toHaveBeenLastCalledWith("/api/v1/urls/known", {
-    method: "DELETE",
-  });
+  expect(api).toHaveBeenLastCalledWith(
+    "/api/v1/urls/known",
+    expect.objectContaining({ method: "DELETE" }),
+  );
   expect(screen.queryByText(stats.shortUrl)).not.toBeInTheDocument();
   expect(screen.getByLabelText("Short code")).toHaveValue("");
   expect(screen.getByLabelText("Short code")).toHaveFocus();
@@ -200,7 +201,7 @@ test("DeleteLink_alreadyAbsent_clearsStaleDetails", async () => {
   expect(screen.queryByText(stats.shortUrl)).not.toBeInTheDocument();
 });
 
-test("DeleteLink_pending_preventsRepeatedDeletionAndCancellation", async () => {
+test("DeleteLink_pending_preventsRepeatedDeletionButEscapeDismissesDialog", async () => {
   await loaded();
   let resolve!: (response: Response) => void;
   api.mockReturnValueOnce(
@@ -219,7 +220,7 @@ test("DeleteLink_pending_preventsRepeatedDeletionAndCancellation", async () => {
     screen.getByRole("dialog"),
     new Event("cancel", { cancelable: true }),
   );
-  expect(screen.getByRole("dialog")).toBeVisible();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   await act(async () => resolve(new Response(null, { status: 204 })));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });

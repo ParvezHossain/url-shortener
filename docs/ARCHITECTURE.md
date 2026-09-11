@@ -176,3 +176,22 @@ captures the exact result code and blocks duplicate submission. HTTP 204 clears
 the result; 404 clears stale details with an already-absent message. Failed
 deletes allow explicit retry. Stats now include the configured public URL and
 persisted custom-alias flag, without a schema change or guessed classification.
+
+
+## 11. Frontend security and quality (TICKET-018)
+
+The HTML response receives a fresh script nonce and strict CSP. External theme
+and application scripts carry that nonce; assets remain static. The frontend
+uses no HTML injection. The policy restricts styles, images, fonts, and API
+connections to the same origin and blocks framing, objects, and base changes.
+Swagger responses retain their separate behavior. HTTP integration tests verify
+nonce uniqueness, external-only scripts, and asset serving under the policy.
+
+`apiRequest` is the shared transport boundary: it buffers responses within a
+15-second deadline, supports cancellation, and classifies offline, timeout,
+malformed, rate-limit, server, and network failures. It never retries writes.
+`ApiErrorBoundary` catches rendering failures and offers a fresh page load.
+Workflow slots reserve result space; the native dialog has explicit focus
+wrapping/restoration and supports Escape even after confirmation (dismissal
+never cancels an already submitted request). Quality tooling and thresholds are
+specified in `FRONTEND_QUALITY.md`.
