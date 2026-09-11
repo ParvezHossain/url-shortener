@@ -40,3 +40,14 @@ Arrange / Act / Assert, with blank lines separating the three (no explicit comme
 
 ## Fixtures
 Use small builder/factory helpers in a `test/.../util` package (e.g., `ShortUrlTestFixtures.aShortUrl()`), not copy-pasted object construction across test classes.
+
+## Frontend
+
+Vitest, React Testing Library, and user-event test visible behavior and keyboard
+interaction in jsdom. Run `npm test` from `frontend/`; tests use the same
+`Component_condition_expectedBehavior` naming style. Maven verification also
+runs frontend lint, formatting checks, and tests. `FrontendProductionTest`
+requests the generated HTML and referenced JavaScript/CSS from a real Spring
+Boot HTTP server with Testcontainers PostgreSQL, and checks that unknown short
+codes still return the API's 404 response. Native dialog focus containment and
+responsive appearance should additionally be checked in a real browser.

@@ -28,6 +28,11 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - name: Verify application
         run: mvn --batch-mode --no-transfer-progress clean verify
       - name: Build and start containers

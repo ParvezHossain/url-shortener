@@ -1,10 +1,19 @@
+# --- Frontend build stage ---
+FROM node:24-alpine AS frontend
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend/ ./
+RUN npm run lint && npm run format:check && npm test && npm run build
+
 # --- Build stage ---
 FROM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /workspace
 COPY pom.xml .
 RUN mvn -B dependency:go-offline
 COPY src ./src
-RUN mvn -B clean package -DskipTests
+COPY --from=frontend /frontend/dist ./frontend/dist
+RUN mvn -B clean package -DskipTests -Dfrontend.skip=true
 
 # --- Runtime stage ---
 FROM eclipse-temurin:25-jre-alpine

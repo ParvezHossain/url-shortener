@@ -151,3 +151,11 @@ messages, causes, and stack traces are not exposed.
   "instance": "/api/v1/urls/abc123"
 }
 ```
+
+## Frontend entry point
+
+`GET /` serves the frontend HTML (`text/html`, `Cache-Control: no-cache`). Its
+versioned JavaScript and CSS are served from `/assets/`. This is separate from
+the JSON API below `/api/v1`; short-code redirects keep their existing behavior.
+During local frontend development, Vite proxies API and Swagger requests to the
+backend (see README).

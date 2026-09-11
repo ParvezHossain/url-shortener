@@ -130,3 +130,50 @@ responses. Adjust the host/port for your deployment.
 
 ## License
 MIT (adjust as needed).
+
+## Frontend development
+
+The React + TypeScript frontend lives in `frontend/` and uses Vite with an
+application-owned CSS design system (no UI component library). Install Node.js
+24 LTS and npm alongside Java 25 and Maven.
+
+```bash
+# Start the backend with PostgreSQL as described above, then in another terminal:
+cd frontend
+npm ci
+npm run dev
+```
+
+Open the Vite URL printed in the terminal (normally `http://localhost:5173`).
+The development server proxies `/api`, `/swagger-ui`, and `/v3/api-docs` to
+`http://localhost:8080`. Set `API_PROXY_TARGET` when the local backend uses a
+different address. Production uses same-origin relative URLs and needs no host
+configuration. The foundation page is at `/`; short codes keep their existing
+redirect behavior. The create-link form and analytics UI are separate tickets.
+
+```bash
+# From frontend/:
+npm run lint
+npm run format:check       # npm run format applies formatting
+npm test
+npm run build             # type-checks and writes dist/
+npm run preview           # previews assets only; does not proxy the API
+
+# From the repository root:
+mvn clean verify          # installs/builds frontend, runs frontend and Java checks
+mvn spring-boot:run        # serves the generated frontend after the build
+docker compose up --build # builds frontend and Java into one application image
+```
+
+Maven uses the new `exec-maven-plugin` to run the checked-in npm scripts, then
+copies `frontend/dist/` into the application's static resources. Docker uses a
+Node build stage and supplies those same assets to the Maven build, avoiding
+Node in the runtime image. `-Dfrontend.skip=true` is for that prebuilt-assets
+path only; normal verification should not skip frontend checks.
+
+The reusable components are in `frontend/src/components/ui.tsx`. Design tokens
+and responsive breakpoints are documented in `frontend/src/styles.css`.
+Appearance follows the OS until explicitly toggled, with the choice saved in
+local storage. Components support keyboard focus, reduced motion, and semantic
+status/error feedback. `Modal` uses native `<dialog>` behavior for focus trapping
+and restoration; `Toast` stays visible until dismissed. Fonts are system-local.

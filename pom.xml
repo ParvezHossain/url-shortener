@@ -20,6 +20,7 @@
   <properties>
     <java.version>25</java.version>
     <maven.compiler.release>25</maven.compiler.release>
+    <frontend.skip>false</frontend.skip>
     <springdoc.version>3.0.0</springdoc.version>
   </properties>
 
@@ -98,7 +99,44 @@
   </dependencies>
 
   <build>
+    <resources>
+      <resource><directory>src/main/resources</directory></resource>
+      <resource><directory>frontend/dist</directory><targetPath>static</targetPath></resource>
+    </resources>
     <plugins>
+      <!-- Node is supplied by the developer, CI, or Docker build environment. -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.5.0</version>
+        <configuration>
+          <workingDirectory>${project.basedir}/frontend</workingDirectory>
+          <executable>npm</executable>
+          <skip>${frontend.skip}</skip>
+        </configuration>
+        <executions>
+          <execution>
+            <id>frontend-install</id><phase>generate-resources</phase><goals><goal>exec</goal></goals>
+            <configuration><arguments><argument>ci</argument><argument>--no-audit</argument><argument>--no-fund</argument></arguments></configuration>
+          </execution>
+          <execution>
+            <id>frontend-build</id><phase>generate-resources</phase><goals><goal>exec</goal></goals>
+            <configuration><arguments><argument>run</argument><argument>build</argument></arguments></configuration>
+          </execution>
+          <execution>
+            <id>frontend-lint</id><phase>test</phase><goals><goal>exec</goal></goals>
+            <configuration><arguments><argument>run</argument><argument>lint</argument></arguments></configuration>
+          </execution>
+          <execution>
+            <id>frontend-format</id><phase>test</phase><goals><goal>exec</goal></goals>
+            <configuration><arguments><argument>run</argument><argument>format:check</argument></arguments></configuration>
+          </execution>
+          <execution>
+            <id>frontend-test</id><phase>test</phase><goals><goal>exec</goal></goals>
+            <configuration><arguments><argument>test</argument></arguments></configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>

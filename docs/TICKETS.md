@@ -355,7 +355,31 @@ The v1 frontend is a responsive React + TypeScript application under `frontend/`
 ---
 
 ### TICKET-014 — Frontend foundation and professional design system
-**Status:** Backlog.
+**Status:** Complete (verified 2026-09-11).
+
+**Implementation:** Added React + TypeScript + Vite under `frontend/`, an
+application-owned responsive design system, all eight shared UI primitives,
+`AppShell`, and a persistent system-aware theme toggle. The foundation landing
+page links to the existing Swagger UI; create/analytics workflows remain in
+subsequent tickets. Added npm lint/format/test/build commands and a lockfile.
+Maven uses the new `exec-maven-plugin` to build and check the frontend and package
+its assets. Docker adds a Node 24 build stage; CI installs Node 24. A thin root
+controller serves HTML directly because the default welcome-page forward would
+collide with the existing short-code route. Updated development, architecture,
+API, and testing documentation. No UI library or database changes.
+
+**Verification:** `mvn clean verify` passes all 259 Java and 15 frontend tests
+without failures or skips, including frontend lint/format checks and production
+build. `docker build -t url-shortener:ticket014 .` succeeds.
+Frontend tests cover navigation/footer, keyboard activation,
+busy buttons, field accessibility, all UI primitives, persistent themes, OS
+changes, and unavailable storage. A real HTTP/PostgreSQL smoke test verifies the
+production HTML and referenced JS/CSS plus unchanged unknown-code 404 semantics.
+Headless Chrome checks passed at 320, 390, 768, 1024, 1440, and 1920px without
+horizontal overflow; verified dark-theme persistence, reduced motion, and native
+modal background-focus exclusion, Escape dismissal, and focus restoration.
+Text-token contrast is at least 5.32:1 in light mode and 7.21:1 in dark mode;
+input/button boundary contrast meets 3:1.
 
 **Depends on:** TICKET-012.
 

@@ -131,3 +131,22 @@ Compose stack. Any failing verification or container startup fails the job.
 - Redis cache in front of `resolve()` for hot codes.
 - Rate limiting via Bucket4j at the controller/filter layer.
 - Horizontal scaling: move ID generation off the Postgres sequence to Snowflake-style IDs if multiple write nodes are ever needed.
+
+## 10. Frontend foundation (TICKET-014)
+
+`frontend/` contains React + TypeScript, built with Vite. `AppShell` owns the
+responsive header, anchor navigation, main landmark, and footer. Shared UI
+primitives and `ThemeToggle` use application-owned CSS custom properties for
+light/dark color palettes, typography, spacing, radii, elevation, focus and motion.
+No UI library or client-side router is introduced. The foundation landing page
+links to the existing API documentation; subsequent tickets add API workflows.
+
+Maven invokes npm using `exec-maven-plugin` during resource generation and tests,
+then copies the Vite output to `classpath:/static`. A thin `FrontendController` serves `/` directly from the packaged HTML; using
+the default welcome-page forward would collide with `/{shortCode}` at
+`/index.html`. Spring Boot serves `/assets/*` through static resource handling. There is
+no catch-all SPA forwarding: `/{shortCode}` continues to resolve links and retain
+its existing error semantics. Docker builds assets in a Node 24 stage before
+packaging the single executable Spring Boot jar. No runtime frontend service or
+production CORS configuration is required. Development-only proxy configuration
+lives in `vite.config.ts`.
