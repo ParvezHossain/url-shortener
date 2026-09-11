@@ -2,6 +2,7 @@ package com.example.urlshortener.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.jayway.jsonpath.JsonPath;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -20,7 +21,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /** Verifies that the actual Vite production output is available over HTTP. */
 @Tag("integration")
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "app.base-url=https://links.example.test")
 @ActiveProfiles("test")
 @Testcontainers
 class FrontendProductionTest {
@@ -31,6 +33,18 @@ class FrontendProductionTest {
 
     @Value("${local.server.port}")
     private int port;
+
+    @Test
+    void frontendConfig_configuredDeployment_returnsPublicBaseUrl() throws Exception {
+        try (var client = HttpClient.newHttpClient()) {
+            var response = client.send(request("/ui/config"), HttpResponse.BodyHandlers.ofString());
+
+            assertThat(response.statusCode()).isEqualTo(200);
+            assertThat(response.headers().firstValue("Content-Type").orElseThrow()).contains("application/json");
+            assertThat(JsonPath.<String>read(response.body(), "$.publicBaseUrl"))
+                    .isEqualTo("https://links.example.test");
+        }
+    }
 
     @Test
     void frontendProductionBuild_isServedBySpringBoot() throws Exception {

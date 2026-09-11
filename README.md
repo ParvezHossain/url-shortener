@@ -145,11 +145,12 @@ npm run dev
 ```
 
 Open the Vite URL printed in the terminal (normally `http://localhost:5173`).
-The development server proxies `/api`, `/swagger-ui`, and `/v3/api-docs` to
+The development server proxies `/api`, `/ui`, `/swagger-ui`, and `/v3/api-docs` to
 `http://localhost:8080`. Set `API_PROXY_TARGET` when the local backend uses a
 different address. Production uses same-origin relative URLs and needs no host
-configuration. The foundation page is at `/`; short codes keep their existing
-redirect behavior. The create-link form and analytics UI are separate tickets.
+configuration. The creation page is at `/`; short codes keep their existing
+redirect behavior. The landing page creates links; analytics and enhanced copy/share interactions
+are separate tickets.
 
 ```bash
 # From frontend/:
@@ -177,3 +178,18 @@ Appearance follows the OS until explicitly toggled, with the choice saved in
 local storage. Components support keyboard focus, reduced motion, and semantic
 status/error feedback. `Modal` uses native `<dialog>` behavior for focus trapping
 and restoration; `Toast` stays visible until dismissed. Fonts are system-local.
+
+### Creating links
+
+Enter an HTTP/HTTPS destination and select **Shorten link**. Expand **Customize
+your link** for a case-sensitive alias (3–16 letters, digits, `_`, or `-`) and
+an optional future expiry in your local time. The form converts expiry to UTC
+for the API and omits empty optional fields. The server remains authoritative
+for URL limits, uniqueness, and expiry. Input is retained after failures;
+submission is disabled while awaiting a response. A basic success link is shown
+in place; richer result actions belong to TICKET-016.
+
+`GET /ui/config` supplies the public alias prefix from `APP_BASE_URL`, using the
+same setting as generated links. It exposes no private configuration and avoids
+embedding a production hostname in frontend assets. Set `APP_BASE_URL` to your
+public short-link address, including when it differs from the frontend origin.

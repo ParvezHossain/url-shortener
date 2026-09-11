@@ -40,17 +40,20 @@ export function Input({
   label,
   hint,
   error,
+  prefix,
   id,
   ...props
 }: InputHTMLAttributes<HTMLInputElement> & {
   label: string;
   hint?: string;
   error?: string;
+  prefix?: string;
 }) {
   const generatedId = useId();
   const fieldId = id ?? generatedId;
   const description = [
     props["aria-describedby"],
+    prefix && `${fieldId}-prefix`,
     hint && `${fieldId}-hint`,
     error && `${fieldId}-error`,
   ]
@@ -59,12 +62,19 @@ export function Input({
   return (
     <div className="field">
       <label htmlFor={fieldId}>{label}</label>
-      <input
-        {...props}
-        id={fieldId}
-        aria-invalid={error ? true : props["aria-invalid"]}
-        aria-describedby={description || undefined}
-      />
+      <div className={prefix ? "input-with-prefix" : undefined}>
+        {prefix && (
+          <span id={`${fieldId}-prefix`} className="input-prefix">
+            {prefix}
+          </span>
+        )}
+        <input
+          {...props}
+          id={fieldId}
+          aria-invalid={error ? true : props["aria-invalid"]}
+          aria-describedby={description || undefined}
+        />
+      </div>
       {hint && (
         <p id={`${fieldId}-hint`} className="muted">
           {hint}

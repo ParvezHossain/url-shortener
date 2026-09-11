@@ -614,3 +614,99 @@ dialog::backdrop {
     scroll-behavior: auto !important;
   }
 }
+
+.creation-card {
+  width: 100%;
+}
+.creation-card h2 {
+  font-size: var(--text-xl);
+  margin-bottom: var(--space-6);
+}
+.creation-card form {
+  display: grid;
+  gap: var(--space-4);
+}
+.creation-card .alert {
+  overflow-wrap: anywhere;
+}
+.creation-card input {
+  min-width: 0;
+}
+.optional-settings {
+  border-block: 1px solid var(--border);
+  padding-block: var(--space-4);
+}
+.optional-settings summary {
+  cursor: pointer;
+  min-height: 2rem;
+  font-weight: 650;
+}
+.optional-settings summary span {
+  font-size: var(--text-xs);
+  margin-left: var(--space-2);
+  font-weight: 400;
+}
+.optional-settings[open] {
+  display: grid;
+}
+.optional-settings .field {
+  margin-top: var(--space-4);
+}
+.public-prefix {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.alias-field {
+  min-width: 0;
+}
+.create-submit {
+  width: 100%;
+}
+@media (max-width: 40rem) {
+  .hero {
+    padding-block: var(--space-6);
+    gap: var(--space-6);
+  }
+  .hero h1 {
+    font-size: 2.4rem;
+    margin-block: var(--space-3);
+  }
+  .hero-description {
+    font-size: var(--text-base);
+    margin-bottom: var(--space-3);
+  }
+  .hero-note {
+    display: none;
+  }
+  .creation-card {
+    padding: var(--space-4);
+  }
+}
+.input-with-prefix {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.input-prefix {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  min-width: 0;
+  max-width: 100%;
+}
+.input-with-prefix input {
+  flex: 1 1 8rem;
+  width: 0;
+}
+@media (max-width: 40rem) {
+  .header-inner > .button span:last-child {
+    display: none;
+  }
+  .header-inner > .button {
+    min-width: 2.75rem;
+    padding-inline: var(--space-3);
+  }
+}

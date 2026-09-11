@@ -138,8 +138,9 @@ Compose stack. Any failing verification or container startup fails the job.
 responsive header, anchor navigation, main landmark, and footer. Shared UI
 primitives and `ThemeToggle` use application-owned CSS custom properties for
 light/dark color palettes, typography, spacing, radii, elevation, focus and motion.
-No UI library or client-side router is introduced. The foundation landing page
-links to the existing API documentation; subsequent tickets add API workflows.
+No UI library or client-side router is introduced. The landing page hosts `CreateUrlForm`, which posts to the existing creation
+API and maps ProblemDetail feedback to fields. Subsequent tickets add enhanced
+results and analytics.
 
 Maven invokes npm using `exec-maven-plugin` during resource generation and tests,
 then copies the Vite output to `classpath:/static`. A thin `FrontendController` serves `/` directly from the packaged HTML; using
@@ -150,3 +151,11 @@ its existing error semantics. Docker builds assets in a Node 24 stage before
 packaging the single executable Spring Boot jar. No runtime frontend service or
 production CORS configuration is required. Development-only proxy configuration
 lives in `vite.config.ts`.
+
+`GET /ui/config` returns a `FrontendConfigResponse` containing the configured
+public base URL. This keeps the alias preview consistent with service-generated
+links across deployments without rebuilding JavaScript. `CreateUrlForm` owns
+input, validation, pending, error, and basic success state. It guards duplicate
+submissions, preserves fields on failure, and converts optional local expiry to
+UTC. Runtime configuration and creation requests use relative same-origin paths;
+Vite proxies `/ui` as well as the API during development.

@@ -407,7 +407,29 @@ input/button boundary contrast meets 3:1.
 ---
 
 ### TICKET-015 — Responsive create-short-link experience
-**Status:** Backlog.
+**Status:** Complete (verified 2026-09-11).
+
+**Implementation:** Replaced the illustrative hero card with `CreateUrlForm`.
+The form validates HTTP/HTTPS destinations, optional aliases, and future local
+expiry, then submits the existing API payload with expiry converted to UTC.
+Optional fields use an accessible disclosure; field errors open it and focus
+the relevant input. Pending submissions are guarded and inputs remain read-only
+until completion. RFC 7807 field validation, invalid URLs, alias conflicts, and
+network/server failures produce helpful feedback without clearing fields.
+Success displays a basic link; enhanced result interactions remain TICKET-016.
+`GET /ui/config` exposes the existing configured public base URL for the alias
+prefix; Vite proxies it for local development. No new dependencies or schema
+changes. Updated README and API/architecture documentation.
+
+**Verification:** `mvn verify` passes all 261 Java and 34 frontend tests, with
+no failures or skips, including lint, formatting, and the production build.
+HTTP integration verifies the configured public prefix. Headless Chrome against
+the packaged application and isolated PostgreSQL verified generated links,
+custom alias plus expiry, and duplicate-alias feedback with retained input and
+field focus. Final responsive checks at 320, 390, 768, and 1440px found no
+horizontal overflow with optional fields collapsed or expanded. The creation
+card starts at 391px on a 320px-wide viewport. Temporary smoke-test services
+were removed after verification.
 
 **Depends on:** TICKET-014 and TICKET-006.
 

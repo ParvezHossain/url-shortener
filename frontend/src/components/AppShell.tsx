@@ -1,4 +1,5 @@
 import { ThemeToggle } from "./ThemeToggle";
+import { CreateUrlForm } from "./CreateUrlForm";
 import { Card } from "./ui";
 
 /** Provides responsive navigation and a shared content frame for the application. */
@@ -29,7 +30,7 @@ export function AppShell() {
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
             <span className="eyebrow">
-              <span className="status-dot" /> SIMPLE LINKS. YOUR INFRASTRUCTURE.
+              <span className="status-dot" /> YOUR LINKS. YOUR SERVER.
             </span>
             <h1 id="hero-title">
               A little link.
@@ -37,41 +38,14 @@ export function AppShell() {
               <span>A long way.</span>
             </h1>
             <p className="hero-description">
-              Make every connection a little simpler. Shorter URLs, memorable
-              aliases, and clear click counts — all on your own server.
+              Shorten a URL. Make it memorable. Keep every link on your own
+              server.
             </p>
-            <a className="button button--primary" href="/swagger-ui.html">
-              Explore the API <span aria-hidden="true">↗</span>
-            </a>
             <p className="hero-note">
               Self-hosted. Open by design. Built for simplicity.
             </p>
           </div>
-          <Card className="link-preview">
-            <div className="preview-heading">
-              <span className="eyebrow">SMALL LINK. BIG POSSIBILITIES.</span>
-              <span aria-hidden="true">↗</span>
-            </div>
-            <div className="preview-route">
-              <span className="muted">FROM SOMETHING LONG</span>
-              <div className="long-url">
-                example.com/ideas/a-better-way-to-share
-              </div>
-            </div>
-            <div className="connection-line" aria-hidden="true">
-              ↓
-            </div>
-            <div className="preview-result">
-              <span className="muted">TO SOMETHING MEMORABLE</span>
-              <strong>
-                /your-next-idea <span aria-hidden="true">↗</span>
-              </strong>
-            </div>
-            <div className="preview-footer">
-              <span className="preview-badge">Custom alias</span>
-              <span className="muted">Illustrative link</span>
-            </div>
-          </Card>
+          <CreateUrlForm />
         </section>
         <section
           id="overview"

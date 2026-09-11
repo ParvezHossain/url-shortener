@@ -11,8 +11,15 @@ import org.springframework.http.MediaType;
 class FrontendControllerTest {
 
     @Test
+    void config_configuredPublicUrl_returnsDeploymentAddress() {
+        var response = new FrontendController("https://links.example.test").config();
+
+        assertThat(response.publicBaseUrl()).isEqualTo("https://links.example.test");
+    }
+
+    @Test
     void index_packagedFrontend_returnsHtmlWithRevalidation() {
-        var response = new FrontendController().index();
+        var response = new FrontendController("https://links.example.test").index();
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.TEXT_HTML);

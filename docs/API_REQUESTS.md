@@ -159,3 +159,16 @@ versioned JavaScript and CSS are served from `/assets/`. This is separate from
 the JSON API below `/api/v1`; short-code redirects keep their existing behavior.
 During local frontend development, Vite proxies API and Swagger requests to the
 backend (see README).
+
+### Public frontend configuration
+
+`GET /ui/config` returns `200 application/json`, for example:
+
+```json
+{"publicBaseUrl":"https://links.example.com"}
+```
+
+The value comes from `APP_BASE_URL`; the creation form uses it beside the alias
+input. This public presentation endpoint is excluded from the URL API's OpenAPI
+operations. The create form posts to the existing `POST /api/v1/urls` endpoint,
+omitting empty optional fields and converting local expiry to an ISO UTC timestamp.
