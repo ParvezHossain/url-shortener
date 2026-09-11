@@ -178,3 +178,16 @@ The value comes from `APP_BASE_URL`; the creation form uses it beside the alias
 input. This public presentation endpoint is excluded from the URL API's OpenAPI
 operations. The create form posts to the existing `POST /api/v1/urls` endpoint,
 omitting empty optional fields and converting local expiry to an ISO UTC timestamp.
+
+## Operational metrics (TICKET-013)
+
+`GET /actuator/metrics` lists available metric names.
+`GET /actuator/metrics/jvm.memory.used` returns the metric name, measurements,
+base unit, and available tags. `GET /actuator/metrics/http.server.requests`
+reports HTTP request measurements after traffic is handled. These operational
+endpoints use Actuator JSON rather than the `/api/v1` DTOs.
+
+```bash
+curl --fail http://localhost:8080/actuator/metrics
+curl --fail http://localhost:8080/actuator/metrics/jvm.memory.used
+```

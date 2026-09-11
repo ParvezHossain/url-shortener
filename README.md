@@ -219,3 +219,29 @@ Lighthouse thresholds, local commands, and report locations. The frontend uses
 a strict nonce-based CSP, external scripts, bounded requests, safe recovery
 messages, and an unexpected-error boundary. CI runs axe, keyboard/responsive
 workflows, and Lighthouse against the packaged application.
+
+## Observability
+
+The `docker` profile writes one ECS JSON object per application log event to
+stdout, using Spring Boot's built-in structured logging (no extra dependency).
+The startup banner is disabled in this profile; local development retains readable
+text logs. View container logs with `docker compose logs -f app`. JSON events
+include `@timestamp`, nested `log.level`, `log.logger`, and `service.name` fields,
+and `message`.
+URL creation (generated codes and custom aliases), resolution, and deletion
+are logged at INFO with the short code, without destination URLs or query tokens.
+These service logs describe execution, not a durable transaction audit trail.
+
+Actuator exposes health, info, and metrics at the existing `/actuator` base path:
+
+```bash
+curl --fail http://localhost:8080/actuator/metrics
+curl --fail http://localhost:8080/actuator/metrics/jvm.memory.used
+curl --fail http://localhost:8080/actuator/metrics/http.server.requests
+```
+
+HTTP request metrics appear after requests have been handled. The metrics endpoint
+returns a JSON catalog and individual measurements; no Prometheus exporter is
+configured. Other Actuator endpoints remain outside the exposure allowlist.
+
+Format reference: [Spring Boot structured logging](https://docs.spring.io/spring-boot/reference/features/logging.html#features.logging.structured).

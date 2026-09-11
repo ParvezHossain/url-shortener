@@ -342,6 +342,10 @@ been pushed; that acceptance check remains pending.
 ---
 
 ### TICKET-013 — Observability
+**Status:** Complete (2026-09-11). `mvn verify` passed all 264 Java and 71 frontend tests, production build, lint, and formatting checks.
+
+**Implementation:** Enabled built-in ECS JSON console logging and disabled the banner only in the `docker` profile. Retained existing Actuator metrics exposure and INFO business-event logs. Added generated-creation log capture coverage and Docker-profile HTTP tests for JSON creation/resolution/deletion events and metric catalog/measurements. Updated operational documentation; no new dependencies.
+
 **Goal:** Structured JSON logging in `docker` profile, Actuator `/metrics` exposed, key business events logged (`info`) per `CODING_STANDARDS.md`.
 **Required tests**
 - `UrlShortenerServiceImplTest#create_validRequest_logsCreationEvent()` (using a log-capturing appender, e.g. Logback `ListAppender`) — optional but recommended, not blocking.

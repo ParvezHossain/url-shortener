@@ -112,7 +112,7 @@ contracts through MVC, including every domain exception.
 ## 7. Cross-cutting concerns
 - **Migrations**: Flyway, versioned SQL under `src/main/resources/db/migration`. No `ddl-auto=update` in any profile that touches a shared DB.
 - **Config**: `application.yml` with Spring profiles `local`, `docker`, `test`; secrets via env vars (`POSTGRES_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`).
-- **Observability**: Spring Boot Actuator (`/actuator/health`, `/actuator/metrics`), structured JSON logging in the `docker`/prod profile.
+- **Observability**: Spring Boot Actuator (`/actuator/health`, `/actuator/metrics`), built-in ECS JSON console logging in the `docker` profile, with the startup banner disabled. Other profiles retain default text logging. Creation, resolution, and deletion events log short codes at INFO without destination URLs; these are service execution logs, not a durable audit trail. The endpoint allowlist is `health,info,metrics`; no additional logging or metrics dependency is needed.
 - **API docs**: springdoc-openapi, exposed at `/swagger-ui.html` and `/v3/api-docs`.
   `OpenApiConfig` supplies API metadata and reusable problem response components.
   Controllers declare operation summaries and applicable response codes; request

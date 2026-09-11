@@ -12,6 +12,11 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import org.slf4j.LoggerFactory;
 import com.example.urlshortener.domain.ShortUrl;
 import com.example.urlshortener.dto.request.CreateShortUrlRequest;
 import com.example.urlshortener.exception.InvalidUrlException;
@@ -394,6 +399,32 @@ class UrlShortenerServiceImplTest {
         service.delete("my-link");
 
         verify(repository).delete(url);
+    }
+
+    @Test
+    void create_validRequest_logsCreationEvent() {
+        var logger = (Logger) LoggerFactory.getLogger(UrlShortenerServiceImpl.class);
+        var appender = new ListAppender<ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        var saved = mock(ShortUrl.class);
+        when(saved.getId()).thenReturn(62L);
+        when(repository.saveAndFlush(any(ShortUrl.class))).thenReturn(saved);
+
+        try {
+            var response = service.create(new CreateShortUrlRequest(
+                    "https://example.com/private?token=secret", null, null));
+
+            assertThat(response.shortCode()).isEqualTo("10");
+            assertThat(appender.list).singleElement().satisfies(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.INFO);
+                assertThat(event.getFormattedMessage()).isEqualTo("Created short URL with code 10");
+                assertThat(event.getFormattedMessage()).doesNotContain("secret", "https://");
+            });
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
     }
 
     private void assertInvalidAlias(String alias) {

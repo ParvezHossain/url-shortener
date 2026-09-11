@@ -41,8 +41,15 @@ spring:
   config:
     activate:
       on-profile: docker
+  main:
+    banner-mode: "off"
   datasource:
     url: jdbc:postgresql://postgres:5432/urlshortener
+
+logging:
+  structured:
+    format:
+      console: ecs
 
 ---
 spring:
