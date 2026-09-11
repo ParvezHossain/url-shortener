@@ -245,3 +245,25 @@ returns a JSON catalog and individual measurements; no Prometheus exporter is
 configured. Other Actuator endpoints remain outside the exposure allowlist.
 
 Format reference: [Spring Boot structured logging](https://docs.spring.io/spring-boot/reference/features/logging.html#features.logging.structured).
+
+## Frontend architecture and deployment
+
+The browser runs React + TypeScript with an application-owned CSS design system.
+`AppShell` selects creation or analytics through hash routing; components call
+same-origin REST endpoints through a bounded request helper. Spring Boot serves
+the Vite build from the application jar with a strict CSP. Docker's final JRE
+image contains the production assets; Node is used only during the build.
+PostgreSQL runs separately. CI verifies the image contents and exercises the
+containerized app through Playwright before running Lighthouse.
+
+See [Frontend deployment](docs/FRONTEND_DEPLOYMENT.md) for runtime configuration,
+local proxying, isolated CI reproduction, troubleshooting, and screenshot commands.
+The analytics UI remains at `/#/analytics` to preserve the short-code namespace.
+
+### Desktop (1440px)
+
+![Desktop creation experience](docs/screenshots/desktop.png)
+
+### Mobile (375px)
+
+<img src="docs/screenshots/mobile.png" alt="Mobile creation experience" width="375" />

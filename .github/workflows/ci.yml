@@ -18,6 +18,7 @@ jobs:
       COMPOSE_PROJECT_NAME: urlshortener-ci
       APP_PORT: '18080'
       POSTGRES_PORT: '25432'
+      POSTGRES_DB: urlshortener_ci
       APP_BASE_URL: http://localhost:18080
       E2E_BASE_URL: http://localhost:18080
     steps:
@@ -38,6 +39,8 @@ jobs:
         run: mvn --batch-mode --no-transfer-progress clean verify
       - name: Build and start containers
         run: docker compose up --build --wait --wait-timeout 180
+      - name: Verify production-only runtime image
+        run: python3 scripts/check-runtime-image.py "$(docker compose images -q app)"
       - name: Check application health
         run: curl --fail --silent --show-error http://localhost:18080/actuator/health
       - name: Install browser for quality checks
@@ -45,7 +48,7 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           echo "CHROME_PATH=$(node -p "require('@playwright/test').chromium.executablePath()")" >> "$GITHUB_ENV"
-      - name: Browser accessibility and keyboard checks
+      - name: Browser release, accessibility, and responsive checks
         working-directory: frontend
         run: npm run test:e2e
       - name: Lighthouse quality thresholds

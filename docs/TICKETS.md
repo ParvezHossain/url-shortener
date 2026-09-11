@@ -582,7 +582,11 @@ report artifacts. No new production dependency or schema change.
 ---
 
 ### TICKET-019 — Frontend CI, end-to-end tests, and deployment documentation
-**Status:** Backlog.
+**Status:** Complete with the route clarification below (2026-09-11). `mvn clean verify` passed 264 Java and 71 frontend tests, lint, formatting, and production build. The isolated Compose image passed its content audit and all 20 Playwright tests. Six Lighthouse runs passed (Performance 93–95; Accessibility, Best Practices, and SEO 100). Mobile and desktop screenshots were captured from the containerized app.
+
+**Implementation:** Extended existing PR gates with named release E2E scenarios and a production image audit. Added deployment/configuration/troubleshooting documentation and reproducible mobile/desktop screenshots. The Docker profile now honors Compose’s configured database URL.
+
+**Route clarification:** The `/analytics` smoke criterion uses the implemented `/#/analytics` UI route. Reserving `/analytics` would intercept an existing valid short alias; no redirect namespace or alias rule is changed.
 
 **Depends on:** TICKET-012 and TICKET-018.
 

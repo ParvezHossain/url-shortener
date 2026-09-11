@@ -74,3 +74,7 @@ and [Lighthouse CI configuration](https://github.com/GoogleChrome/lighthouse-ci/
 All 16 production browser tests passed. All six Lighthouse runs scored
 Performance 95, Accessibility 100, Best Practices 100, and SEO 100.
 `mvn verify` passed 261 Java tests and 71 frontend tests.
+
+TICKET-019 adds release workflows and an image-content audit; see
+[Frontend deployment](FRONTEND_DEPLOYMENT.md) for containerized reproduction
+and the analytics hash-route clarification.

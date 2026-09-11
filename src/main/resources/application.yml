@@ -44,7 +44,7 @@ spring:
   main:
     banner-mode: "off"
   datasource:
-    url: jdbc:postgresql://postgres:5432/urlshortener
+    url: ${POSTGRES_URL:jdbc:postgresql://postgres:5432/urlshortener}
 
 logging:
   structured:

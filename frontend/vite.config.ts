@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  build: { sourcemap: false },
   server: {
     proxy: {
       "/ui": process.env.API_PROXY_TARGET || "http://localhost:8080",

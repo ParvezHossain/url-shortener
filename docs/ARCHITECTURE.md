@@ -195,3 +195,14 @@ Workflow slots reserve result space; the native dialog has explicit focus
 wrapping/restoration and supports Escape even after confirmation (dismissal
 never cancels an already submitted request). Quality tooling and thresholds are
 specified in `FRONTEND_QUALITY.md`.
+
+## 12. Frontend release path (TICKET-019)
+
+PR verification uses Maven to run both toolchains, then tests the Compose image
+with isolated PostgreSQL data. Release E2E tests cover creation and a real
+redirect, analytics lookup and deletion, duplicate-alias recovery, and same-origin
+UI/API reachability. Analytics retains hash routing so a short alias named
+`analytics` is not intercepted. CI audits the final image for production-only
+assets before browser and Lighthouse checks. See `FRONTEND_DEPLOYMENT.md` for
+configuration, proxying, build troubleshooting, and reproduction commands. The
+Docker datasource honors `POSTGRES_URL`, including Compose's custom database name.
