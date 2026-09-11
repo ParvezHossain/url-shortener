@@ -139,8 +139,8 @@ responsive header, anchor navigation, main landmark, and footer. Shared UI
 primitives and `ThemeToggle` use application-owned CSS custom properties for
 light/dark color palettes, typography, spacing, radii, elevation, focus and motion.
 No UI library or client-side router is introduced. The landing page hosts `CreateUrlForm`, which posts to the existing creation
-API and maps ProblemDetail feedback to fields. Subsequent tickets add enhanced
-results and analytics.
+API and maps ProblemDetail feedback to fields. `CreationResult` provides copy/share and reset actions; a subsequent ticket
+adds the analytics page.
 
 Maven invokes npm using `exec-maven-plugin` during resource generation and tests,
 then copies the Vite output to `classpath:/static`. A thin `FrontendController` serves `/` directly from the packaged HTML; using
@@ -155,7 +155,15 @@ lives in `vite.config.ts`.
 `GET /ui/config` returns a `FrontendConfigResponse` containing the configured
 public base URL. This keeps the alias preview consistent with service-generated
 links across deployments without rebuilding JavaScript. `CreateUrlForm` owns
-input, validation, pending, error, and basic success state. It guards duplicate
+input, validation, pending, error, and confirmed result state. It guards duplicate
 submissions, preserves fields on failure, and converts optional local expiry to
 UTC. Runtime configuration and creation requests use relative same-origin paths;
 Vite proxies `/ui` as well as the API during development.
+
+`CreationResult` consumes validated creation metadata and the submitted alias
+choice (the creation response has no alias-type flag). Copy/share status lives
+inside the result component and is discarded when the parent resets it. Results
+and form fields never enter browser storage. Link-opening actions use new tabs
+with `noopener noreferrer`; analytics targets the existing side-effect-free
+`GET /api/v1/urls/{shortCode}` until the analytics page is implemented. Clipboard
+and Web Share failures are handled locally without repeating the creation POST.

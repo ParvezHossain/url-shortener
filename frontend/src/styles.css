@@ -710,3 +710,44 @@ dialog::backdrop {
     padding-inline: var(--space-3);
   }
 }
+.creation-result {
+  border-color: var(--accent);
+}
+.result-link {
+  display: block;
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  background: var(--surface-soft);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-block: var(--space-4);
+}
+.result-actions > * {
+  flex: 1 1 auto;
+}
+.result-status {
+  color: var(--success);
+  font-size: var(--text-sm);
+  min-height: 1.6em;
+}
+.result-metadata {
+  margin-block: var(--space-6);
+}
+.result-metadata > div {
+  margin-block: var(--space-4);
+}
+.result-metadata dt {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.result-metadata dd {
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+}

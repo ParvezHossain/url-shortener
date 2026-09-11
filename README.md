@@ -149,8 +149,7 @@ The development server proxies `/api`, `/ui`, `/swagger-ui`, and `/v3/api-docs` 
 `http://localhost:8080`. Set `API_PROXY_TARGET` when the local backend uses a
 different address. Production uses same-origin relative URLs and needs no host
 configuration. The creation page is at `/`; short codes keep their existing
-redirect behavior. The landing page creates links; analytics and enhanced copy/share interactions
-are separate tickets.
+redirect behavior. The landing page creates links; the analytics page is a separate ticket.
 
 ```bash
 # From frontend/:
@@ -186,8 +185,13 @@ your link** for a case-sensitive alias (3–16 letters, digits, `_`, or `-`) and
 an optional future expiry in your local time. The form converts expiry to UTC
 for the API and omits empty optional fields. The server remains authoritative
 for URL limits, uniqueness, and expiry. Input is retained after failures;
-submission is disabled while awaiting a response. A basic success link is shown
-in place; richer result actions belong to TICKET-016.
+submission is disabled while awaiting a response. A result panel shows the confirmed link, destination, alias type, and expiry.
+Copy the link or use native sharing when supported. If copying is unavailable
+or denied, a selected text field provides a manual copy fallback. **Open link**
+opens the redirect in a new tab; **View analytics** currently opens the existing
+JSON stats endpoint in a new tab, pending the analytics UI in TICKET-017.
+**Shorten another** clears the form and result, then focuses the destination
+field. Result data is kept only in memory; refreshing never repeats creation.
 
 `GET /ui/config` supplies the public alias prefix from `APP_BASE_URL`, using the
 same setting as generated links. It exposes no private configuration and avoids

@@ -455,7 +455,26 @@ were removed after verification.
 ---
 
 ### TICKET-016 — Creation result, copy, share, and retry interactions
-**Status:** Backlog.
+**Status:** Complete (verified 2026-09-11).
+
+**Implementation:** Added `CreationResult` with a prominent short URL, confirmed
+destination/expiry metadata, and generated/custom alias status. Clipboard copy
+has a selected inline manual fallback for unavailable or denied access. Native
+sharing is shown only when supported; failures/cancellation preserve the result.
+Success and action feedback use a live region. Open-link and analytics actions
+use new tabs; analytics currently targets the existing JSON stats endpoint until
+TICKET-017 adds its page. Reset clears form/result/error state and focuses the
+destination input. No link data is persisted and mounting never creates a link.
+No backend, dependency, or schema changes.
+
+**Verification:** `mvn verify` passes 261 Java and 46 frontend tests without
+failures or skips, including lint, formatting, and the production build. Tests
+cover metadata, clipboard success/unavailability/denial, sharing support,
+cancellation/failure, reset focus and field clearing, malformed responses, and
+remount without resubmission or browser storage. Chrome checks using production
+assets and mocked API responses passed at 320, 390, 768, and 1440px with long
+URLs and no horizontal overflow. Manual copy selected the complete link; reset
+and refresh left the creation-request count unchanged.
 
 **Depends on:** TICKET-015.
 

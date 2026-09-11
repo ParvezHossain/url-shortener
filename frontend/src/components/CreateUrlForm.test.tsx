@@ -33,7 +33,13 @@ function submit() {
 }
 function success() {
   return new Response(
-    JSON.stringify({ shortUrl: "https://links.example.test/abc" }),
+    JSON.stringify({
+      shortCode: "abc",
+      shortUrl: "https://links.example.test/abc",
+      originalUrl: "https://example.com/path",
+      createdAt: "2026-09-11T00:00:00Z",
+      expiresAt: null,
+    }),
     { status: 201 },
   );
 }
@@ -43,7 +49,7 @@ test("CreateUrlForm_validMinimumInput_submitsExpectedPayload", async () => {
   render(<CreateUrlForm />);
   fill("Destination URL", "https://example.com/path");
   submit();
-  await screen.findByText(/Your short link is ready/);
+  await screen.findByRole("heading", { name: "Your short link is ready." });
   expect(create).toHaveBeenCalledWith(
     "/api/v1/urls",
     expect.objectContaining({
@@ -65,7 +71,7 @@ test("CreateUrlForm_optionalAliasAndExpiry_submitsExpectedPayload", async () => 
   fill("Custom alias (optional)", "Launch_26");
   fill("Expiry (optional)", "2099-10-20T14:30");
   submit();
-  await screen.findByText(/Your short link is ready/);
+  await screen.findByRole("heading", { name: "Your short link is ready." });
   expect(JSON.parse(create.mock.calls[0][1].body)).toEqual({
     originalUrl: "https://example.com",
     customAlias: "Launch_26",
@@ -166,7 +172,7 @@ test.each(["network", "server"])(
     );
     create.mockResolvedValue(success());
     submit();
-    await screen.findByText(/Your short link is ready/);
+    await screen.findByRole("heading", { name: "Your short link is ready." });
   },
 );
 
@@ -227,7 +233,7 @@ test("CreateUrlForm_pending_preventsRepeatedSubmission", async () => {
   expect(screen.getByRole("status")).toHaveTextContent("Working");
   expect(create).toHaveBeenCalledOnce();
   await act(async () => resolve(success()));
-  expect(screen.getByRole("button", { name: /Shorten link/ })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Shorten another" })).toBeEnabled();
 });
 
 test("CreateUrlForm_configUnavailable_allowsRetry", async () => {
@@ -238,4 +244,60 @@ test("CreateUrlForm_configUnavailable_allowsRetry", async () => {
     .setup()
     .click(await screen.findByRole("button", { name: "Retry loading prefix" }));
   expect(await screen.findByText("https://links.example.test/")).toBeVisible();
+});
+
+test("CreationResult_shortenAnother_resetsFormAndResult", async () => {
+  const user = userEvent.setup();
+  create.mockResolvedValue(success());
+  render(<CreateUrlForm />);
+  fill("Destination URL", "https://example.com/path");
+  fill("Custom alias (optional)", "launch");
+  fill("Expiry (optional)", "2099-01-01T12:00");
+  submit();
+  await screen.findByRole("heading", { name: "Your short link is ready." });
+  await user.click(screen.getByRole("button", { name: "Copy link" }));
+  await user.click(screen.getByRole("button", { name: "Shorten another" }));
+  expect(screen.getByLabelText("Destination URL")).toHaveValue("");
+  expect(screen.getByLabelText("Destination URL")).toHaveFocus();
+  expect(screen.getByLabelText("Custom alias (optional)")).toHaveValue("");
+  expect(screen.getByLabelText("Expiry (optional)")).toHaveValue("");
+  expect(
+    screen.queryByText("Short link copied to clipboard."),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("heading", { name: "Your short link is ready." }),
+  ).not.toBeInTheDocument();
+  expect(create).toHaveBeenCalledOnce();
+});
+
+test("CreateUrlForm_remountedAfterSuccess_doesNotResubmitOrRestoreLink", async () => {
+  create.mockResolvedValue(success());
+  const view = render(<CreateUrlForm />);
+  fill("Destination URL", "https://example.com/path");
+  submit();
+  await screen.findByRole("heading", { name: "Your short link is ready." });
+  view.unmount();
+  render(<CreateUrlForm />);
+  expect(screen.getByLabelText("Destination URL")).toHaveValue("");
+  expect(create).toHaveBeenCalledOnce();
+  expect(localStorage.length).toBe(0);
+  expect(sessionStorage.length).toBe(0);
+});
+
+test("CreateUrlForm_malformedSuccess_preservesInputWithoutUnsafeResult", async () => {
+  create.mockResolvedValue(
+    new Response(JSON.stringify({ shortUrl: "javascript:alert(1)" }), {
+      status: 201,
+    }),
+  );
+  render(<CreateUrlForm />);
+  fill("Destination URL", "https://example.com/path");
+  submit();
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Please try again",
+  );
+  expect(screen.getByLabelText("Destination URL")).toHaveValue(
+    "https://example.com/path",
+  );
+  expect(screen.queryByRole("link")).not.toBeInTheDocument();
 });

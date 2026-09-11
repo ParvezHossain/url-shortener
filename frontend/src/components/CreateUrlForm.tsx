@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { CreationResult, type CreatedLink } from "./CreationResult";
 import { Alert, Button, Card, Input } from "./ui";
 
 type Fields = { originalUrl: string; customAlias: string; expiresAt: string };
@@ -43,7 +44,8 @@ export function CreateUrlForm() {
   const [fields, setFields] = useState<Fields>(emptyFields);
   const [errors, setErrors] = useState<Errors>({});
   const [message, setMessage] = useState("");
-  const [shortUrl, setShortUrl] = useState("");
+  const [result, setResult] = useState<CreatedLink | null>(null);
+  const resetFocus = useRef(false);
   const [pending, setPending] = useState(false);
   const inFlight = useRef(false);
   const form = useRef<HTMLFormElement>(null);
@@ -70,6 +72,15 @@ export function CreateUrlForm() {
     return () => abort.abort();
   }, [configAttempt]);
 
+  useEffect(() => {
+    if (!result && resetFocus.current) {
+      form.current
+        ?.querySelector<HTMLInputElement>('[name="originalUrl"]')
+        ?.focus();
+      resetFocus.current = false;
+    }
+  }, [result]);
+
   function showErrors(next: Errors, detail: string) {
     setErrors(next);
     setMessage(detail);
@@ -87,7 +98,7 @@ export function CreateUrlForm() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (inFlight.current) return;
-    setShortUrl("");
+    setResult(null);
     const next = validate(fields);
     if (Object.keys(next).length) {
       showErrors(next, "Check the highlighted fields and try again.");
@@ -114,9 +125,19 @@ export function CreateUrlForm() {
       });
       const body = await response.json().catch(() => ({}));
       if (response.ok) {
-        if (!validHttpUrl(body.shortUrl))
+        if (
+          !validHttpUrl(body.shortUrl) ||
+          !validHttpUrl(body.originalUrl) ||
+          typeof body.shortCode !== "string" ||
+          !/^[a-zA-Z0-9_-]{1,16}$/.test(body.shortCode) ||
+          typeof body.createdAt !== "string" ||
+          !Number.isFinite(Date.parse(body.createdAt)) ||
+          (body.expiresAt !== null &&
+            (typeof body.expiresAt !== "string" ||
+              !Number.isFinite(Date.parse(body.expiresAt))))
+        )
           throw new Error("Invalid success response");
-        setShortUrl(body.shortUrl);
+        setResult({ ...body, customAlias: Boolean(fields.customAlias) });
       } else if (response.status === 409) {
         showErrors(
           { customAlias: "This alias is already taken. Choose another one." },
@@ -157,8 +178,23 @@ export function CreateUrlForm() {
   function update(name: keyof Fields, value: string) {
     setFields((previous) => ({ ...previous, [name]: value }));
     setErrors((previous) => ({ ...previous, [name]: undefined }));
-    setShortUrl("");
+    setResult(null);
   }
+
+  if (result)
+    return (
+      <CreationResult
+        result={result}
+        onReset={() => {
+          resetFocus.current = true;
+          setFields(emptyFields);
+          setErrors({});
+          setMessage("");
+          setPending(false);
+          setResult(null);
+        }}
+      />
+    );
 
   return (
     <Card className="creation-card">
@@ -238,11 +274,6 @@ export function CreateUrlForm() {
           {pending ? "Creating your link…" : "Shorten link"}
           <span aria-hidden="true">↗</span>
         </Button>
-        {shortUrl && (
-          <Alert tone="success">
-            Your short link is ready: <a href={shortUrl}>{shortUrl}</a>
-          </Alert>
-        )}
       </form>
     </Card>
   );
