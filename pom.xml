@@ -11,7 +11,7 @@
     <relativePath/>
   </parent>
 
-  <groupId>com.example</groupId>
+  <groupId>com.parvez</groupId>
   <artifactId>url-shortener</artifactId>
   <version>0.1.0-SNAPSHOT</version>
   <name>url-shortener</name>

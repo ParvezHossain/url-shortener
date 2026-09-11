@@ -49,7 +49,7 @@ mvn flyway:info
 
 ## 5. Directory map (see ARCHITECTURE.md for details)
 ```
-src/main/java/com/example/urlshortener/
+src/main/java/com/parvez/urlshortener/
   controller/   REST endpoints (thin)
   service/      business logic, interfaces + impl
   repository/   Spring Data JPA repositories
