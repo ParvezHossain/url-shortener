@@ -138,9 +138,9 @@ Compose stack. Any failing verification or container startup fails the job.
 responsive header, anchor navigation, main landmark, and footer. Shared UI
 primitives and `ThemeToggle` use application-owned CSS custom properties for
 light/dark color palettes, typography, spacing, radii, elevation, focus and motion.
-No UI library or client-side router is introduced. The landing page hosts `CreateUrlForm`, which posts to the existing creation
-API and maps ProblemDetail feedback to fields. `CreationResult` provides copy/share and reset actions; a subsequent ticket
-adds the analytics page.
+No UI or routing library is introduced. The landing page hosts `CreateUrlForm`, which posts to the existing creation
+API and maps ProblemDetail feedback to fields. `CreationResult` provides copy/share and reset actions; `AnalyticsLookup`
+handles single-link analytics and confirmed deletion.
 
 Maven invokes npm using `exec-maven-plugin` during resource generation and tests,
 then copies the Vite output to `classpath:/static`. A thin `FrontendController` serves `/` directly from the packaged HTML; using
@@ -164,6 +164,15 @@ Vite proxies `/ui` as well as the API during development.
 choice (the creation response has no alias-type flag). Copy/share status lives
 inside the result component and is discarded when the parent resets it. Results
 and form fields never enter browser storage. Link-opening actions use new tabs
-with `noopener noreferrer`; analytics targets the existing side-effect-free
-`GET /api/v1/urls/{shortCode}` until the analytics page is implemented. Clipboard
+with `noopener noreferrer`; analytics targets `/#/analytics?code=...`, which loads the side-effect-free
+`GET /api/v1/urls/{shortCode}` endpoint. Clipboard
 and Web Share failures are handled locally without repeating the creation POST.
+
+`AppShell` observes hash changes using `useSyncExternalStore`. `/#/analytics`
+accepts an optional `code` query within the fragment, without introducing server
+paths that could shadow short codes. Pending lookups are aborted on unmount and
+late responses ignored. New lookups clear old results. Delete confirmation
+captures the exact result code and blocks duplicate submission. HTTP 204 clears
+the result; 404 clears stale details with an already-absent message. Failed
+deletes allow explicit retry. Stats now include the configured public URL and
+persisted custom-alias flag, without a schema change or guessed classification.

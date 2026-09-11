@@ -97,7 +97,8 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
         var url = repository.findByShortCode(shortCode)
                 .orElseThrow(() -> new UrlNotFoundException(shortCode));
         return new ShortUrlStatsResponse(url.getShortCode(), url.getOriginalUrl(),
-                url.getCreatedAt(), url.getExpiresAt(), url.getClickCount(), url.getLastAccessedAt());
+                url.getCreatedAt(), url.getExpiresAt(), url.getClickCount(), url.getLastAccessedAt(),
+                baseUrl + "/" + url.getShortCode(), url.isCustomAlias());
     }
 
     /**

@@ -498,7 +498,27 @@ and refresh left the creation-request count unchanged.
 ---
 
 ### TICKET-017 — Link analytics lookup and delete workflow
-**Status:** Backlog.
+**Status:** Complete (verified 2026-09-11).
+
+**Implementation:** Added `/#/analytics` with optional preselected code, primary
+navigation, and creation-result integration. The page shows all metadata,
+unvisited/active/expired states, exact ISO date tooltips, and loading/failure
+feedback. Expiry updates while open. Lookups are read-only and aborted on route
+unmount. A native modal identifies the exact link and requires confirmation
+before deletion. Duplicate deletion is blocked; 204/404 clear stale details,
+and failures allow explicit retry. Stats add `shortUrl` and the persisted
+`customAlias` flag. No schema changes or new dependencies.
+
+**Verification:** `mvn verify` passes all 261 Java and 60 frontend tests without
+failures or skips, including lint, formatting, and production build. Extended
+service/controller/HTTP tests verify both added stats fields and unchanged
+persisted analytics. Frontend tests cover lookup states, live expiry, route
+unmount, confirmation cancellation, confirmed deletion, failures/retries, and
+repeat-request prevention. Chrome against the packaged app and isolated
+PostgreSQL verified zero clicks after lookup, no deletion on Cancel, HTTP 404
+after confirmed deletion, cleared details, restored input focus, and no link
+storage. Layout checks passed at 320, 390, 768, and 1440px without horizontal
+overflow. Temporary smoke-test services were removed after verification.
 
 **Depends on:** TICKET-014, TICKET-008, and TICKET-009.
 

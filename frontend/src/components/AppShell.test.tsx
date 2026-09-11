@@ -9,7 +9,7 @@ test("AppShell_rendersPrimaryNavigationAndFooter", () => {
   });
   expect(
     within(navigation).getByRole("link", { name: "Overview" }),
-  ).toHaveAttribute("href", "#overview");
+  ).toHaveAttribute("href", "/#overview");
   expect(
     within(navigation).getByRole("link", { name: /API docs/ }),
   ).toHaveAttribute("href", "/swagger-ui.html");
@@ -23,4 +23,21 @@ test("AppShell_rendersPrimaryNavigationAndFooter", () => {
       "A simpler way to share.",
     ),
   ).toBeVisible();
+});
+
+test("AppShell_analyticsRoute_rendersLookupInsteadOfCreation", () => {
+  window.history.replaceState(null, "", "/#/analytics");
+  try {
+    render(<AppShell />);
+    expect(
+      screen.getByRole("heading", { name: "Link analytics" }),
+    ).toBeVisible();
+    expect(screen.getByRole("link", { name: "Analytics" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.queryByLabelText("Destination URL")).not.toBeInTheDocument();
+  } finally {
+    window.history.replaceState(null, "", "/");
+  }
 });

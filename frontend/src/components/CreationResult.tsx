@@ -175,7 +175,7 @@ export function CreationResult({
           </a>
           <a
             className="button button--secondary"
-            href={`/api/v1/urls/${encodeURIComponent(result.shortCode)}`}
+            href={`/#/analytics?code=${encodeURIComponent(result.shortCode)}`}
             target="_blank"
             rel="noopener noreferrer"
           >

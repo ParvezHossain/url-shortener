@@ -149,7 +149,7 @@ The development server proxies `/api`, `/ui`, `/swagger-ui`, and `/v3/api-docs` 
 `http://localhost:8080`. Set `API_PROXY_TARGET` when the local backend uses a
 different address. Production uses same-origin relative URLs and needs no host
 configuration. The creation page is at `/`; short codes keep their existing
-redirect behavior. The landing page creates links; the analytics page is a separate ticket.
+redirect behavior. The landing page creates links; `/#/analytics` looks up a known short code.
 
 ```bash
 # From frontend/:
@@ -188,8 +188,8 @@ for URL limits, uniqueness, and expiry. Input is retained after failures;
 submission is disabled while awaiting a response. A result panel shows the confirmed link, destination, alias type, and expiry.
 Copy the link or use native sharing when supported. If copying is unavailable
 or denied, a selected text field provides a manual copy fallback. **Open link**
-opens the redirect in a new tab; **View analytics** currently opens the existing
-JSON stats endpoint in a new tab, pending the analytics UI in TICKET-017.
+opens the redirect in a new tab; **View analytics** opens `/#/analytics?code=...` in a new tab with the
+created link preselected.
 **Shorten another** clears the form and result, then focuses the destination
 field. Result data is kept only in memory; refreshing never repeats creation.
 
@@ -197,3 +197,16 @@ field. Result data is kept only in memory; refreshing never repeats creation.
 same setting as generated links. It exposes no private configuration and avoids
 embedding a production hostname in frontend assets. Set `APP_BASE_URL` to your
 public short-link address, including when it differs from the frontend origin.
+
+### Link analytics and deletion
+
+Open **Analytics** or **View analytics** after creation. Look up a short code to
+see its public URL, destination, click count, alias type, and timestamps. Dates
+use your local timezone; hover for the exact ISO timestamp. Active/expired
+status updates when expiry is reached while the page is open. Lookup never
+opens the redirect or adds a click. This is a single-link lookup.
+
+**Delete link** opens a dialog naming the exact code and explaining permanent
+removal. Only **Delete permanently** sends DELETE; Cancel or Escape leaves it
+untouched. Submitted requests cannot be cancelled. Successful deletion clears
+the result; failures allow explicit retry. No link data enters browser storage.

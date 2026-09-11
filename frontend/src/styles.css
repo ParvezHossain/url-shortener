@@ -751,3 +751,40 @@ dialog::backdrop {
   margin: var(--space-1) 0 0;
   overflow-wrap: anywhere;
 }
+.analytics-page {
+  max-width: 52rem;
+  margin: var(--space-12) auto;
+  display: grid;
+  gap: var(--space-6);
+}
+.analytics-page h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  margin: 0;
+}
+.analytics-page > p {
+  margin: 0;
+}
+.analytics-form {
+  display: grid;
+  gap: var(--space-4);
+}
+.analytics-details h2 {
+  overflow-wrap: anywhere;
+}
+.click-total strong {
+  font-size: 2.5rem;
+  color: var(--accent);
+}
+.analytics-details .result-metadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.analytics-details .result-metadata > div:nth-child(-n + 2) {
+  grid-column: 1 / -1;
+}
+@media (max-width: 40rem) {
+  .analytics-details .result-metadata {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

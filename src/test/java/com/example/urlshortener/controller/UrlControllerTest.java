@@ -163,12 +163,14 @@ class UrlControllerTest {
     void getStats_validCode_returns200WithBody() throws Exception {
         when(service.getStats("my-link")).thenReturn(new ShortUrlStatsResponse(
                 "my-link", "https://example.com/path", Instant.parse("2026-01-01T00:00:00Z"),
-                Instant.parse("2026-02-01T00:00:00Z"), 42, Instant.parse("2026-01-02T00:00:00Z")));
+                Instant.parse("2026-02-01T00:00:00Z"), 42, Instant.parse("2026-01-02T00:00:00Z"), "https://short.example/my-link", true));
 
         mvc.perform(get("/api/v1/urls/my-link"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.shortCode").value("my-link"))
+                .andExpect(jsonPath("$.shortUrl").value("https://short.example/my-link"))
+                .andExpect(jsonPath("$.customAlias").value(true))
                 .andExpect(jsonPath("$.originalUrl").value("https://example.com/path"))
                 .andExpect(jsonPath("$.createdAt").value("2026-01-01T00:00:00Z"))
                 .andExpect(jsonPath("$.expiresAt").value("2026-02-01T00:00:00Z"))
@@ -190,7 +192,7 @@ class UrlControllerTest {
     @Test
     void getStats_unvisitedPermanentLink_returnsNullExpiryAndLastAccess() throws Exception {
         when(service.getStats("10")).thenReturn(new ShortUrlStatsResponse(
-                "10", "https://example.com", Instant.parse("2026-01-01T00:00:00Z"), null, 0, null));
+                "10", "https://example.com", Instant.parse("2026-01-01T00:00:00Z"), null, 0, null, "https://short.example/10", false));
 
         mvc.perform(get("/api/v1/urls/10"))
                 .andExpect(status().isOk())

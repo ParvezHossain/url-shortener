@@ -32,7 +32,7 @@ test("CreationResult_success_displaysShortUrlAndMetadata", async () => {
   );
   expect(screen.getByRole("link", { name: /View analytics/ })).toHaveAttribute(
     "href",
-    "/api/v1/urls/abc",
+    "/#/analytics?code=abc",
   );
 });
 

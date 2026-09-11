@@ -84,6 +84,10 @@ Concurrent accesses to the same link are serialized to preserve every click.
 existing link, including expired links. Reading stats does not increment clicks
 or change `lastAccessedAt`. A never-visited link has `clickCount: 0` and
 `lastAccessedAt: null`; `expiresAt: null` means no expiry.
+TICKET-017 adds `shortUrl` (using `APP_BASE_URL`) and `customAlias` (the persisted
+alias flag). Existing fields and read-only semantics remain unchanged.
+The frontend at `/#/analytics?code=my-link` uses this endpoint and sends deletion
+only after confirmation.
 
 **Response `200 OK`**
 ```json
@@ -93,7 +97,9 @@ or change `lastAccessedAt`. A never-visited link has `clickCount: 0` and
   "createdAt": "2026-09-10T10:15:00Z",
   "expiresAt": "2026-12-31T23:59:59Z",
   "clickCount": 42,
-  "lastAccessedAt": "2026-09-10T12:00:00Z"
+  "lastAccessedAt": "2026-09-10T12:00:00Z",
+  "shortUrl": "http://localhost:8080/my-link",
+  "customAlias": true
 }
 ```
 

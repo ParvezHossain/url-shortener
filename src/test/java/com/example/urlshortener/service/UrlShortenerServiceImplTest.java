@@ -336,6 +336,8 @@ class UrlShortenerServiceImplTest {
         var stats = service.getStats("my-link");
 
         assertThat(stats.shortCode()).isEqualTo("my-link");
+        assertThat(stats.customAlias()).isTrue();
+        assertThat(stats.shortUrl()).endsWith("/my-link");
         assertThat(stats.originalUrl()).isEqualTo("https://example.com/path?q=1");
         assertThat(stats.createdAt()).isEqualTo(url.getCreatedAt());
         assertThat(stats.expiresAt()).isEqualTo(expiresAt);
@@ -367,6 +369,8 @@ class UrlShortenerServiceImplTest {
         var stats = service.getStats("10");
 
         assertThat(stats.clickCount()).isZero();
+        assertThat(stats.customAlias()).isFalse();
+        assertThat(stats.shortUrl()).endsWith("/10");
         assertThat(stats.expiresAt()).isNull();
         assertThat(stats.lastAccessedAt()).isNull();
         assertThat(url.getLastAccessedAt()).isNull();

@@ -239,6 +239,8 @@ class UrlShortenerApplicationTests {
 
                 assertThat(response.statusCode()).isEqualTo(200);
                 assertThat(JsonPath.<Integer>read(response.body(), "$.clickCount")).isEqualTo(7);
+                assertThat(JsonPath.<String>read(response.body(), "$.shortUrl")).endsWith("/stats-expired");
+                assertThat(JsonPath.<Boolean>read(response.body(), "$.customAlias")).isTrue();
                 assertThat(JsonPath.<String>read(response.body(), "$.lastAccessedAt"))
                         .isEqualTo(lastAccessedAt.toString());
             }
