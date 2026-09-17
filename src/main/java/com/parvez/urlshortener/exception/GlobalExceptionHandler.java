@@ -15,6 +15,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /** Reports missing or invalid credentials without exposing key details. */
+    @ExceptionHandler(ApiAuthenticationException.class)
+    public ProblemDetail handleAuthentication(ApiAuthenticationException ex) {
+        return problem(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
+    /** Reports an authenticated operation without permission. */
+    @ExceptionHandler(ApiPermissionException.class)
+    public ProblemDetail handlePermission(ApiPermissionException ex) {
+        return problem(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
     /** Reports invalid destination, alias, or expiry input as a bad request. */
     @ExceptionHandler(InvalidUrlException.class)
     public ProblemDetail handleInvalidUrl(InvalidUrlException ex) {
@@ -54,6 +66,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ProblemDetail handleUnreadableRequest(HttpMessageNotReadableException ex) {
         return problem(HttpStatus.BAD_REQUEST, "Request body is missing or malformed");
+    }
+
+    /** Reports malformed path or query parameter types without echoing input. */
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleParameterType(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Invalid request parameter");
     }
 
     /** Returns a generic server error without exposing exception details. */

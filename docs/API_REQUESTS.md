@@ -191,3 +191,88 @@ endpoints use Actuator JSON rather than the `/api/v1` DTOs.
 curl --fail http://localhost:8080/actuator/metrics
 curl --fail http://localhost:8080/actuator/metrics/jvm.memory.used
 ```
+
+
+## TICKET-F01: authenticated v2 management
+
+Use HTTPS in production and send credentials only in `X-API-Key`, never in URLs
+([OWASP REST guidance](https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html)).
+The operator runs `python3 scripts/provision-api-key.py` using standard PostgreSQL
+`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, and `PGPASSWORD`/`.pgpass` connection settings.
+Run it after Flyway has applied V2. It creates an owner and key atomically and prints
+the full credential once. Save it securely; there is no retrieval endpoint.
+`--owner <UUID>` issues a recovery/additional key for an existing owner only.
+The operator is responsible for verifying the recipient's identity. No public
+registration, owner claiming, or administrative HTTP API is exposed.
+
+```bash
+# Read the operator-issued key without putting its literal value in shell history.
+read -rsp 'API key: ' API_KEY
+export API_KEY
+curl -i http://localhost:8080/api/v2/urls \
+  -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' \
+  -d '{"originalUrl":"https://example.com/path","customAlias":"owned-demo"}'
+curl -i -H "X-API-Key: $API_KEY" 'http://localhost:8080/api/v2/urls?page=0&size=20'
+curl -i -H "X-API-Key: $API_KEY" http://localhost:8080/api/v2/urls/owned-demo
+curl -i -X DELETE -H "X-API-Key: $API_KEY" http://localhost:8080/api/v2/urls/owned-demo
+```
+
+Creation returns 201 and the existing creation DTO. Stats return 200 and the existing
+stats DTO. Delete returns 204. Listing returns `{content, page, size, totalElements}`;
+page is zero-based, size defaults to 20 and must be 1–100. Ordering is creation time
+then ID descending. Foreign, legacy, and unknown codes return the same 404 response
+from v2. Missing, malformed, duplicate, invalid, and revoked credentials return 401
+ProblemDetail. Key lifecycle operations on any key other than the caller's current
+key return 403. Every v2 response is `Cache-Control: no-store`.
+
+The key prefix is the 24 hex characters after `usk_`. Rotate the current key:
+
+```bash
+curl -i -X POST -H "X-API-Key: $API_KEY" \
+  http://localhost:8080/api/v2/keys/PREFIX/rotate
+# Response: {"apiKey":"<new full key shown once>","prefix":"<new prefix>"}
+# Replace your stored credential immediately; the old key is revoked atomically.
+```
+
+`DELETE /api/v2/keys/PREFIX` with the current key returns 204 and revokes it.
+Keys do not expire automatically; they remain active until explicitly revoked.
+Rotation/revocation have no grace period; already authenticated requests may finish.
+A lost rotation response requires operator recovery, not replaying rotation with the
+old key. Revoke all compromised keys explicitly; issuing a recovery key does not
+silently revoke other keys. Authentication updates `last_used_at` even when the
+subsequent management operation fails. Failed authentication does not update it.
+Creation, rotation, and revocation append transactional `api_audit` events with
+owner UUID, event type, timestamp, and non-secret prefixes only. Raw keys and headers
+are never logged or persisted. Failed authentication is not individually audited;
+rate limiting and broader link/admin audit trails remain F03/F10 work.
+
+### v1 migration and sunset
+
+V1 is deprecated from 2026-09-17 (`Deprecation` response header and OpenAPI flags).
+Existing links remain unowned; v1 continues creating/managing only unowned links.
+V1 can never read or delete v2-owned links, even if an API key is provided.
+No owner is inferred from link codes or previous anonymous usage. To migrate,
+obtain a key and recreate each desired destination through v2 with a new code.
+Existing codes and public `GET /{code}` redirects remain intact. There is no automatic
+claim/transfer endpoint or destructive backfill. The existing frontend stays on v1;
+owner dashboard integration is tracked by F07.
+
+Operators may set `APP_V1_SUNSET` to an ISO-8601 UTC timestamp and restart the app.
+Before the deadline, v1 emits a `Sunset` header; from that instant all v1 URL
+management requests return 410 ProblemDetail. Empty (default) means no scheduled
+retirement. Publish the chosen deadline to clients before enabling it. Retirement
+also disables the current frontend's v1 management workflows; redirects stay public.
+
+
+### Swagger through the development proxy
+
+Open `http://localhost:5173/swagger-ui/index.html` while Vite and the backend are
+running. OpenAPI advertises the relative server `/`, so Try it out calls the same
+browser origin; Vite forwards `/api`, `/swagger-ui`, and `/v3/api-docs` to the backend.
+This avoids a cross-origin request from 5173 to 8080. Use Swagger's **Authorize**
+button to supply the full API key. Restart the backend and reload Swagger after
+changing OpenAPI configuration. Swagger directly on port 8080 works the same way.
+
+A standalone `CorsConfigurationSource` bean does not itself install a CORS filter.
+Skipping authentication for OPTIONS alone also does not produce CORS response
+headers. The development proxy workflow does not require cross-origin API access.

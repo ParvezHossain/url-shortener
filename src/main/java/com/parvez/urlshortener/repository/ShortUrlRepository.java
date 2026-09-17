@@ -1,10 +1,13 @@
 package com.parvez.urlshortener.repository;
 
 import com.parvez.urlshortener.domain.ShortUrl;
-import java.util.Optional;
 import jakarta.persistence.LockModeType;
-import org.springframework.data.jpa.repository.Lock;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,6 +21,10 @@ public interface ShortUrlRepository extends JpaRepository<ShortUrl, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from ShortUrl u where u.shortCode = :shortCode")
     Optional<ShortUrl> findByShortCodeForUpdate(@Param("shortCode") String shortCode);
+
+    /** Returns a bounded, deterministically ordered page for one owner. */
+    Page<ShortUrl> findByOwnerId(
+            UUID ownerId, Pageable pageable);
 
     /** Replaces the internal code after PostgreSQL assigns the generated identity. */
     @Modifying(flushAutomatically = true, clearAutomatically = true)

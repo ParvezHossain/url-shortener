@@ -612,7 +612,25 @@ report artifacts. No new production dependency or schema change.
 ---
 
 ### TICKET-F01 — API key authentication, ownership, and v2 boundary
-**Status:** Backlog.
+**Status:** Complete (verified 2026-09-17).
+
+**Implementation:** Operator-only owner/key provisioning, hashed random API keys,
+constant-time comparison, owner-scoped v2 creation/stats/list/deletion, current-key
+rotation/revocation, last-used timestamps, and transactional key lifecycle audits.
+Foreign resources return 404; v1 cannot read/delete owned links. Legacy links stay
+unowned, public redirects remain available, and v1 advertises deprecation with an
+optional `APP_V1_SUNSET` retirement deadline. V2 responses are not cached. OpenAPI,
+README, architecture, and request/migration examples document the approved policy.
+No new dependency was introduced. V2 adds ownership/key storage; corrective V3
+restores the existing PostgreSQL timestamp/default/constraint contract without
+editing V1. The operator provisioning command is `python3 scripts/provision-api-key.py`.
+
+**Verification:** `mvn verify` passes 316 Java tests (including PostgreSQL ownership,
+prefix uniqueness, populated-schema migration, concurrent rotation, and real HTTP
+isolation tests) and 71 frontend tests, with no failures or skips. Frontend build,
+lint, and formatting checks pass. Three provisioning-script tests pass via
+`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/tests`;
+`docker compose config --quiet` also passes.
 
 **Goal:** Authenticate API clients and enforce per-owner isolation for every management operation.
 

@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Persistent record of a shortened URL: its code, target, optional expiry,
@@ -19,6 +21,9 @@ public class ShortUrl {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "owner_id", updatable = false)
+    private UUID ownerId;
 
     @Column(name = "short_code", nullable = false, unique = true, length = 16)
     private String shortCode;
@@ -53,6 +58,18 @@ public class ShortUrl {
         this.expiresAt = expiresAt;
         this.createdAt = Instant.now();
         this.clickCount = 0L;
+    }
+
+    /** Creates a link belonging to an authenticated owner. */
+    public ShortUrl(String shortCode, String originalUrl, boolean customAlias, Instant expiresAt,
+            UUID ownerId) {
+        this(shortCode, originalUrl, customAlias, expiresAt);
+        this.ownerId = Objects.requireNonNull(ownerId);
+    }
+
+    /** Reports whether this link belongs to the supplied owner (null means legacy). */
+    public boolean belongsTo(UUID ownerId) {
+        return Objects.equals(this.ownerId, ownerId);
     }
 
     /** True if {@code expiresAt} is set and is before now. */

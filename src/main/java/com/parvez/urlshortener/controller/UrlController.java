@@ -34,7 +34,7 @@ public class UrlController {
     }
 
     /** Creates a short link and returns its public location. */
-    @Operation(summary = "Create a short URL", description = "Creates a generated code or a case-sensitive custom alias, with optional future expiry.")
+    @Operation(deprecated = true, summary = "Create a short URL", description = "Creates a generated code or a case-sensitive custom alias, with optional future expiry.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Link created",
                 headers = @Header(name = "Location", description = "Public short URL", schema = @Schema(type = "string", format = "uri")),
@@ -49,7 +49,7 @@ public class UrlController {
         return ResponseEntity.created(URI.create(response.shortUrl())).body(response);
     }
     /** Returns link metadata and analytics without recording a visit. */
-    @Operation(summary = "Get short URL statistics", description = "Reads metadata and analytics without recording a visit. Expired links remain queryable.")
+    @Operation(deprecated = true, summary = "Get short URL statistics", description = "Reads metadata and analytics without recording a visit. Expired links remain queryable.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Link metadata and analytics",
                 content = @Content(mediaType = "application/json", schema = @Schema(implementation = ShortUrlStatsResponse.class))),
@@ -61,7 +61,7 @@ public class UrlController {
         return ResponseEntity.ok(service.getStats(shortCode));
     }
     /** Deletes a link and returns an empty response after the transaction commits. */
-    @Operation(summary = "Delete a short URL", description = "Permanently deletes the link and analytics, including expired links. Repeated deletion returns 404.")
+    @Operation(deprecated = true, summary = "Delete a short URL", description = "Permanently deletes the link and analytics, including expired links. Repeated deletion returns 404.")
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Link deleted", content = @Content),
         @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),

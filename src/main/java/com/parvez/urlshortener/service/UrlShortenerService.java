@@ -3,6 +3,8 @@ package com.parvez.urlshortener.service;
 import com.parvez.urlshortener.dto.request.CreateShortUrlRequest;
 import com.parvez.urlshortener.dto.response.ShortUrlResponse;
 import com.parvez.urlshortener.dto.response.ShortUrlStatsResponse;
+import com.parvez.urlshortener.dto.response.UrlPageResponse;
+import com.parvez.urlshortener.security.OwnerPrincipal;
 
 /** Defines operations on shortened URLs at the application boundary. */
 public interface UrlShortenerService {
@@ -31,4 +33,13 @@ public interface UrlShortenerService {
      */
     void delete(String shortCode);
 
+    /** Creates a link for the authenticated owner. */
+    ShortUrlResponse create(CreateShortUrlRequest request, OwnerPrincipal owner);
+    /** Reads only owned link metadata. */
+    ShortUrlStatsResponse getStats(String code, OwnerPrincipal owner);
+    /** Deletes only an owned link. */
+    void delete(String code, OwnerPrincipal owner);
+    /** Lists a bounded page of owned links. */
+    UrlPageResponse list(
+            OwnerPrincipal owner, int page, int size);
 }

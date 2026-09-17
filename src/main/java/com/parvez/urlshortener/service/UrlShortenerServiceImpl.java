@@ -4,21 +4,26 @@ import com.parvez.urlshortener.domain.ShortUrl;
 import com.parvez.urlshortener.dto.request.CreateShortUrlRequest;
 import com.parvez.urlshortener.dto.response.ShortUrlResponse;
 import com.parvez.urlshortener.dto.response.ShortUrlStatsResponse;
-import com.parvez.urlshortener.exception.InvalidUrlException;
-import com.parvez.urlshortener.exception.UrlNotFoundException;
-import com.parvez.urlshortener.exception.UrlExpiredException;
+import com.parvez.urlshortener.dto.response.UrlPageResponse;
+import com.parvez.urlshortener.exception.ApiAuthenticationException;
 import com.parvez.urlshortener.exception.DuplicateAliasException;
+import com.parvez.urlshortener.exception.InvalidUrlException;
+import com.parvez.urlshortener.exception.UrlExpiredException;
+import com.parvez.urlshortener.exception.UrlNotFoundException;
 import com.parvez.urlshortener.repository.ShortUrlRepository;
+import com.parvez.urlshortener.security.OwnerPrincipal;
 import com.parvez.urlshortener.util.Base62Encoder;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.UUID;
 import java.time.Instant;
+import java.util.UUID;
 import org.hibernate.exception.ConstraintViolationException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +54,18 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
     @Override
     @Transactional
     public ShortUrlResponse create(CreateShortUrlRequest request) {
+        return createForOwner(request, null);
+    }
+
+    /** Creates a link associated with the authenticated owner. */
+    @Override
+    @Transactional
+    public ShortUrlResponse create(CreateShortUrlRequest request,
+            OwnerPrincipal owner) {
+        return createForOwner(request, requireOwner(owner));
+    }
+
+    private ShortUrlResponse createForOwner(CreateShortUrlRequest request, UUID ownerId) {
         if (request == null) {
             throw new InvalidUrlException("Request must not be null");
         }
@@ -57,11 +74,11 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
             throw new InvalidUrlException("expiresAt must be in the future");
         }
         if (request.customAlias() != null) {
-            return createCustomAlias(request);
+            return createCustomAlias(request, ownerId);
         }
         // Reserved character keeps temporary codes separate from public Base62 codes.
         String temporaryCode = "~" + UUID.randomUUID().toString().replace("-", "").substring(0, 15);
-        var saved = repository.saveAndFlush(new ShortUrl(temporaryCode, request.originalUrl(), false, request.expiresAt()));
+        var saved = repository.saveAndFlush(newLink(temporaryCode, request, false, ownerId));
         String shortCode = Base62Encoder.encode(saved.getId());
         repository.updateShortCode(saved.getId(), shortCode);
         log.info("Created short URL with code {}", shortCode);
@@ -94,8 +111,25 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
     @Override
     @Transactional(readOnly = true)
     public ShortUrlStatsResponse getStats(String shortCode) {
+        return stats(shortCode, null);
+    }
+
+    /** Reads statistics only for the authenticated owner; foreign codes look absent. */
+    @Override
+    @Transactional(readOnly = true)
+    public ShortUrlStatsResponse getStats(String shortCode,
+            OwnerPrincipal owner) {
+        return stats(shortCode, requireOwner(owner));
+    }
+
+    private ShortUrlStatsResponse stats(String shortCode, UUID ownerId) {
         var url = repository.findByShortCode(shortCode)
                 .orElseThrow(() -> new UrlNotFoundException(shortCode));
+        if (!url.belongsTo(ownerId)) throw new UrlNotFoundException(shortCode);
+        return toStats(url);
+    }
+
+    private ShortUrlStatsResponse toStats(ShortUrl url) {
         return new ShortUrlStatsResponse(url.getShortCode(), url.getOriginalUrl(),
                 url.getCreatedAt(), url.getExpiresAt(), url.getClickCount(), url.getLastAccessedAt(),
                 baseUrl + "/" + url.getShortCode(), url.isCustomAlias());
@@ -108,13 +142,25 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
     @Override
     @Transactional
     public void delete(String shortCode) {
+        deleteForOwner(shortCode, null);
+    }
+
+    /** Deletes only a link owned by the authenticated caller. */
+    @Override
+    @Transactional
+    public void delete(String shortCode, OwnerPrincipal owner) {
+        deleteForOwner(shortCode, requireOwner(owner));
+    }
+
+    private void deleteForOwner(String shortCode, UUID ownerId) {
         var url = repository.findByShortCodeForUpdate(shortCode)
                 .orElseThrow(() -> new UrlNotFoundException(shortCode));
+        if (!url.belongsTo(ownerId)) throw new UrlNotFoundException(shortCode);
         repository.delete(url);
         log.info("Deleted short URL with code {}", shortCode);
     }
 
-    private ShortUrlResponse createCustomAlias(CreateShortUrlRequest request) {
+    private ShortUrlResponse createCustomAlias(CreateShortUrlRequest request, UUID ownerId) {
         String alias = request.customAlias();
         if (!alias.matches("[a-zA-Z0-9_-]{3,16}")) {
             throw new InvalidUrlException("customAlias must contain 3 to 16 letters, digits, underscores, or hyphens");
@@ -125,11 +171,12 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
         ShortUrl saved;
         try {
             // Flush here so concurrent claims are translated before transaction completion.
-            saved = repository.saveAndFlush(new ShortUrl(alias, request.originalUrl(), true, request.expiresAt()));
+            saved = repository.saveAndFlush(newLink(alias, request, true, ownerId));
         } catch (DataIntegrityViolationException ex) {
             for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
                 if (cause instanceof ConstraintViolationException violation
-                        && "uq_short_url_short_code".equals(violation.getConstraintName())) {
+                        && ("uq_short_url_short_code".equals(violation.getConstraintName())
+                        || "uk_short_url_short_code".equals(violation.getConstraintName()))) {
                     throw new DuplicateAliasException(alias);
                 }
             }
@@ -138,6 +185,31 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
         log.info("Created short URL with custom alias {}", alias);
         return new ShortUrlResponse(alias, baseUrl + "/" + alias,
                 saved.getOriginalUrl(), saved.getCreatedAt(), saved.getExpiresAt());
+    }
+
+    /** Lists a bounded page of the caller's links in stable creation order. */
+    @Override
+    @Transactional(readOnly = true)
+    public UrlPageResponse list(
+            OwnerPrincipal owner, int page, int size) {
+        var ownerId = requireOwner(owner);
+        if (page < 0 || size < 1 || size > 100) throw new InvalidUrlException("Invalid page or size (1–100)");
+        var result = repository.findByOwnerId(ownerId, PageRequest.of(
+                page, size, Sort.by("createdAt", "id").descending()));
+        return new UrlPageResponse(
+                result.map(this::toStats).getContent(), page, size, result.getTotalElements());
+    }
+
+    private UUID requireOwner(OwnerPrincipal owner) {
+        if (owner == null || owner.ownerId() == null) {
+            throw new ApiAuthenticationException();
+        }
+        return owner.ownerId();
+    }
+
+    private ShortUrl newLink(String code, CreateShortUrlRequest request, boolean custom, UUID ownerId) {
+        return ownerId == null ? new ShortUrl(code, request.originalUrl(), custom, request.expiresAt())
+                : new ShortUrl(code, request.originalUrl(), custom, request.expiresAt(), ownerId);
     }
 
     private void validateUrl(String originalUrl) {

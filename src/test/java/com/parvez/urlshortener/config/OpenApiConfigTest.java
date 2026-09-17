@@ -40,7 +40,14 @@ class OpenApiConfigTest {
 
             assertThat(response.statusCode()).isEqualTo(200);
             var document = JsonPath.parse(response.body());
+            assertThat(document.<java.util.List<String>>read("$.servers[*].url")).containsExactly("/");
             assertThat(document.<String>read("$.info.title")).isEqualTo("URL Shortener API");
+            assertThat(document.<Boolean>read("$.paths['/api/v1/urls'].post.deprecated")).isTrue();
+            assertThat(document.<String>read("$.info.description")).contains("APP_V1_SUNSET", "Legacy ownership");
+            assertThat(document.<String>read("$.components.securitySchemes.ApiKey.name")).isEqualTo("X-API-Key");
+            assertThat(document.<java.util.List<?>>read("$.paths['/api/v2/urls'].post.security")).isNotEmpty();
+            assertThat(document.<Map<String, Object>>read("$.paths['/api/v2/urls'].post.responses"))
+                    .containsKeys("201", "400", "401", "403", "409");
             assertOperation(document.read("$.paths['/api/v1/urls'].post"), "201", "400", "409", "500");
             assertOperation(document.read("$.paths['/api/v1/urls/{shortCode}'].get"), "200", "404", "500");
             assertOperation(document.read("$.paths['/api/v1/urls/{shortCode}'].delete"), "204", "404", "500");

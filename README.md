@@ -267,3 +267,15 @@ The analytics UI remains at `/#/analytics` to preserve the short-code namespace.
 ### Mobile (375px)
 
 <img src="docs/screenshots/mobile.png" alt="Mobile creation experience" width="375" />
+
+
+### API v2 authentication
+
+V2 URL management requires an operator-issued `X-API-Key` and isolates links by
+owner. Provision with `python3 scripts/provision-api-key.py` after migration V2,
+using standard PostgreSQL `PG*` connection settings. The full key is shown once.
+See [v2 requests and migration](docs/API_REQUESTS.md#ticket-f01-authenticated-v2-management)
+for creation, listing, stats, deletion, rotation, revocation, and recovery.
+V1 is deprecated and restricted to unowned legacy links. `APP_V1_SUNSET` optionally
+retires v1 management with 410; public short-link redirects remain available.
+The current frontend continues using v1 until the owner dashboard ticket F07.

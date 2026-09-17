@@ -206,3 +206,44 @@ UI/API reachability. Analytics retains hash routing so a short alias named
 assets before browser and Lighthouse checks. See `FRONTEND_DEPLOYMENT.md` for
 configuration, proxying, build troubleshooting, and reproduction commands. The
 Docker datasource honors `POSTGRES_URL`, including Compose's custom database name.
+
+
+## 13. API keys and ownership (TICKET-F01)
+
+`security/ApiKeyFilter` authenticates the entire `/api/v2` boundary before routing
+and passes an immutable `OwnerPrincipal` request attribute. Controllers never accept
+an owner from request JSON. `ApiKeyService` owns authentication and key lifecycle;
+`ApiKeyRepository` uses the existing JDBC dependency for transactional key/audit SQL.
+No new dependency is introduced. Keys contain a 96-bit random non-secret prefix
+and a 256-bit SecureRandom secret. Only SHA-256 of the entire random credential is
+stored, with constant-time hash comparison. This is a machine-generated token,
+not a human password. Malformed/unknown/revoked keys produce the same 401 detail.
+Authentication locks the key row, commits last-used time, and then releases it;
+requests already authenticated before revocation can finish. Concurrent rotation
+has one winner; revocation and issuance/audit share one transaction.
+
+Flyway V2 in the active PostgreSQL migration directory adds `api_owner`, `api_key`,
+`api_audit`, and nullable `short_url.owner_id` with foreign keys. Prefix is the key
+primary key. The owner/creation/ID index supports deterministic bounded listing;
+key owner index supports operator recovery queries. Existing rows remain NULL.
+New v2 links require an owner in the service and are associated on their initial
+insert. v1 remains anonymous but its stats/delete paths explicitly require NULL
+ownership. Public resolve deliberately ignores ownership. Owner mismatch returns
+404 without resource metadata; key lifecycle permission failures return 403.
+
+The operator-only provisioning script accepts PostgreSQL connection environment
+settings, generates credentials locally, sends only a hash to psql over stdin,
+and prints the full key once after successful commit. It never writes a key file.
+Audit rows contain key lifecycle metadata only; application code appends events
+but does not expose audit mutation endpoints. Database administrators can still
+modify rows; tamper-resistant audit infrastructure is F10. V1 sunset is optional
+and configured through `APP_V1_SUNSET`; see API_REQUESTS.md for the transition contract.
+
+
+The pre-existing PostgreSQL V1 variant diverged from the original timestamp/default
+contract. V3 restores TIMESTAMPTZ, default creation time, default alias flag, and
+the expected unique-constraint name without editing V1. Existing timestamp values
+are interpreted as UTC, matching Hibernate's Instant writes. A populated-database
+migration test verifies preservation of legacy destinations, codes, clicks, expiry,
+and NULL ownership. MySQL is not a supported runtime here (no driver/Flyway module
+in pom.xml); these migrations target the configured PostgreSQL location only.

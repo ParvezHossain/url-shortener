@@ -439,4 +439,95 @@ class UrlShortenerServiceImplTest {
                 .isInstanceOf(InvalidUrlException.class);
         verifyNoInteractions(repository);
     }
+
+    @Test
+    void create_authenticatedOwner_persistsOwnership() {
+        var owner = new com.parvez.urlshortener.security.OwnerPrincipal(java.util.UUID.randomUUID(), "prefix");
+        when(repository.saveAndFlush(any(ShortUrl.class))).thenAnswer(call -> call.getArgument(0));
+        service.create(new CreateShortUrlRequest("https://example.com", "owned", null), owner);
+        var captured = ArgumentCaptor.forClass(ShortUrl.class);
+        verify(repository).saveAndFlush(captured.capture());
+        assertThat(captured.getValue().belongsTo(owner.ownerId())).isTrue();
+        assertThat(captured.getValue().belongsTo(null)).isFalse();
+    }
+
+    @Test
+    void getStats_otherOwnersCode_doesNotDiscloseResource() {
+        var owner = new com.parvez.urlshortener.security.OwnerPrincipal(java.util.UUID.randomUUID(), "prefix");
+        when(repository.findByShortCode("foreign")).thenReturn(Optional.of(
+                new ShortUrl("foreign", "https://example.com", true, null, java.util.UUID.randomUUID())));
+        assertThatThrownBy(() -> service.getStats("foreign", owner)).isInstanceOf(UrlNotFoundException.class);
+        assertThatThrownBy(() -> service.getStats("foreign")).isInstanceOf(UrlNotFoundException.class);
+    }
+
+    @Test
+    void delete_otherOwnersCode_doesNotDeleteResource() {
+        var owner = new com.parvez.urlshortener.security.OwnerPrincipal(java.util.UUID.randomUUID(), "prefix");
+        when(repository.findByShortCodeForUpdate("foreign")).thenReturn(Optional.of(
+                new ShortUrl("foreign", "https://example.com", true, null, java.util.UUID.randomUUID())));
+        assertThatThrownBy(() -> service.delete("foreign", owner)).isInstanceOf(UrlNotFoundException.class);
+        assertThatThrownBy(() -> service.delete("foreign")).isInstanceOf(UrlNotFoundException.class);
+        verify(repository, never()).delete(any());
+    }
+
+    @Test
+    void getStats_ownedCode_returnsStatsWithoutRecordingAccess() {
+        var owner = new com.parvez.urlshortener.security.OwnerPrincipal(java.util.UUID.randomUUID(), "prefix");
+        var url = new ShortUrl("owned", "https://example.com", true, null, owner.ownerId());
+        when(repository.findByShortCode("owned")).thenReturn(Optional.of(url));
+        assertThat(service.getStats("owned", owner).shortCode()).isEqualTo("owned");
+        assertThat(url.getClickCount()).isZero();
+    }
+
+    @Test
+    void delete_ownedCode_removesLink() {
+        var owner = new com.parvez.urlshortener.security.OwnerPrincipal(java.util.UUID.randomUUID(), "prefix");
+        var url = new ShortUrl("owned", "https://example.com", true, null, owner.ownerId());
+        when(repository.findByShortCodeForUpdate("owned")).thenReturn(Optional.of(url));
+        service.delete("owned", owner);
+        verify(repository).delete(url);
+    }
+
+    @Test
+    void getStats_legacyCode_doesNotAssignOwnership() {
+        var owner = new com.parvez.urlshortener.security.OwnerPrincipal(java.util.UUID.randomUUID(), "prefix");
+        when(repository.findByShortCode("legacy")).thenReturn(Optional.of(
+                new ShortUrl("legacy", "https://example.com", true, null)));
+        assertThatThrownBy(() -> service.getStats("legacy", owner)).isInstanceOf(UrlNotFoundException.class);
+    }
+
+    @Test
+    void list_authenticatedOwner_returnsBoundedOwnedPage() {
+        var owner = new com.parvez.urlshortener.security.OwnerPrincipal(java.util.UUID.randomUUID(), "prefix");
+        var page = org.springframework.data.domain.PageRequest.of(0, 20,
+                org.springframework.data.domain.Sort.by("createdAt", "id").descending());
+        when(repository.findByOwnerId(owner.ownerId(), page)).thenReturn(new org.springframework.data.domain.PageImpl<>(
+                java.util.List.of(new ShortUrl("owned", "https://example.com", true, null, owner.ownerId()))));
+        var result = service.list(owner, 0, 20);
+        assertThat(result.content()).extracting(com.parvez.urlshortener.dto.response.ShortUrlStatsResponse::shortCode)
+                .containsExactly("owned");
+        assertThat(result.totalElements()).isEqualTo(1);
+    }
+
+    @Test
+    void list_invalidPage_rejectsBeforeQuery() {
+        var owner = new com.parvez.urlshortener.security.OwnerPrincipal(java.util.UUID.randomUUID(), "prefix");
+        assertThatThrownBy(() -> service.list(owner, -1, 20)).isInstanceOf(InvalidUrlException.class);
+        assertThatThrownBy(() -> service.list(owner, 0, 101)).isInstanceOf(InvalidUrlException.class);
+        assertThatThrownBy(() -> service.list(owner, 0, 0)).isInstanceOf(InvalidUrlException.class);
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void management_missingOwner_rejectsBeforeQuery() {
+        assertThatThrownBy(() -> service.create(null, null))
+                .isInstanceOf(com.parvez.urlshortener.exception.ApiAuthenticationException.class);
+        assertThatThrownBy(() -> service.getStats("code", null))
+                .isInstanceOf(com.parvez.urlshortener.exception.ApiAuthenticationException.class);
+        assertThatThrownBy(() -> service.delete("code", null))
+                .isInstanceOf(com.parvez.urlshortener.exception.ApiAuthenticationException.class);
+        assertThatThrownBy(() -> service.list(null, 0, 20))
+                .isInstanceOf(com.parvez.urlshortener.exception.ApiAuthenticationException.class);
+        verifyNoInteractions(repository);
+    }
 }

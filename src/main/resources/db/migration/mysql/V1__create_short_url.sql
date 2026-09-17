@@ -1,0 +1,13 @@
+CREATE TABLE short_url (
+                           id BIGINT NOT NULL AUTO_INCREMENT,
+                           short_code VARCHAR(16) NOT NULL,
+                           original_url TEXT NOT NULL,
+                           custom_alias BOOLEAN NOT NULL,
+                           created_at TIMESTAMP(6) NOT NULL,
+                           expires_at TIMESTAMP(6) NULL,
+                           click_count BIGINT NOT NULL DEFAULT 0,
+                           last_accessed_at TIMESTAMP(6) NULL,
+
+                           PRIMARY KEY (id),
+                           CONSTRAINT uk_short_url_short_code UNIQUE (short_code)
+);
