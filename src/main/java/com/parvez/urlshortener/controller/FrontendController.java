@@ -43,7 +43,7 @@ public class FrontendController {
         String html = new ClassPathResource("static/index.html").getContentAsString(StandardCharsets.UTF_8)
                 .replace("<script ", "<script nonce=\"" + nonce + "\" ");
         String policy = "default-src 'none'; script-src 'nonce-" + nonce + "' 'strict-dynamic'; "
-                + "style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; "
+                + "style-src 'self'; img-src 'self' blob:; font-src 'self'; connect-src 'self'; "
                 + "base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
         return ResponseEntity.ok().cacheControl(CacheControl.noCache())
                 .contentType(MediaType.TEXT_HTML)

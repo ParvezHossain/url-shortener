@@ -138,4 +138,21 @@ class RateLimitInterceptorTest {
         verifyNoInteractions(service);
     }
 
+
+    @Test
+    void preHandle_qrGeneration_consumesOwnerManagementQuota() throws Exception {
+        var owner = new OwnerPrincipal(UUID.randomUUID(), "key");
+        when(service.consume(true, "owner:" + owner.ownerId(), 2, 60))
+                .thenReturn(new RateLimitService.Decision(false, false, 0, 10));
+        var request = new MockHttpServletRequest("GET", "/api/v2/urls/owned/qr.png");
+        request.setAttribute("owner", owner);
+        var controller = new com.parvez.urlshortener.controller.QrCodeController(
+                mock(com.parvez.urlshortener.service.QrCodeService.class));
+        var handler = new HandlerMethod(controller, controller.getClass().getMethod("png", String.class,
+                OwnerPrincipal.class, com.parvez.urlshortener.dto.request.QrOptionsRequest.class));
+        var response = new MockHttpServletResponse();
+        assertThat(interceptor.preHandle(request, response, handler)).isFalse();
+        assertThat(response.getStatus()).isEqualTo(429);
+    }
+
 }

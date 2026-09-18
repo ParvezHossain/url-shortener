@@ -65,7 +65,8 @@ class FrontendProductionTest {
                 scriptCount++;
             }
             assertThat(scriptCount).isGreaterThanOrEqualTo(2);
-            assertThat(policy).doesNotContain("unsafe-inline", "unsafe-eval");
+            assertThat(policy).doesNotContain("unsafe-inline", "unsafe-eval")
+                    .contains("img-src 'self' blob:;", "object-src 'none'");
 
             var assets = Pattern.compile("(?:src|href)=\"(/assets/[^\"]+\\.(?:js|css))\"")
                     .matcher(response.body());

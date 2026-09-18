@@ -1,6 +1,7 @@
 package com.parvez.urlshortener.security;
 
 import com.parvez.urlshortener.controller.ApiKeyController;
+import com.parvez.urlshortener.controller.QrCodeController;
 import com.parvez.urlshortener.controller.RedirectController;
 import com.parvez.urlshortener.controller.UrlController;
 import com.parvez.urlshortener.controller.V2UrlController;
@@ -41,7 +42,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             throws Exception {
         if (!(handler instanceof HandlerMethod method) || "OPTIONS".equals(request.getMethod())) return true;
         Class<?> type = method.getBeanType();
-        boolean management = type == UrlController.class || type == V2UrlController.class || type == ApiKeyController.class;
+        boolean management = type == UrlController.class || type == V2UrlController.class || type == ApiKeyController.class || type == QrCodeController.class;
         if (!management && type != RedirectController.class) return true;
         OwnerPrincipal owner = (OwnerPrincipal) request.getAttribute("owner");
         String identity = management && owner != null ? "owner:" + owner.ownerId() : "client:" + request.getRemoteAddr();

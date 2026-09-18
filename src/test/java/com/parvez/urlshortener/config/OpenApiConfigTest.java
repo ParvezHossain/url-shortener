@@ -48,6 +48,10 @@ class OpenApiConfigTest {
             assertThat(document.<java.util.List<?>>read("$.paths['/api/v2/urls'].post.security")).isNotEmpty();
             assertThat(document.<Map<String, Object>>read("$.paths['/api/v2/urls'].post.responses"))
                     .containsKeys("201", "400", "401", "403", "409", "429", "503");
+            assertThat(document.<Map<String, Object>>read("$.paths['/api/v2/urls/{code}/qr.png'].get.responses"))
+                    .containsKeys("200", "400", "401", "404", "429", "503");
+            assertThat(document.<Map<String, Object>>read("$.paths['/api/v2/urls/{code}/qr.svg'].get.responses['200'].content"))
+                    .containsKey("image/svg+xml");
             assertOperation(document.read("$.paths['/api/v1/urls'].post"), "201", "400", "409", "429", "503", "500");
             assertOperation(document.read("$.paths['/api/v1/urls/{shortCode}'].get"), "200", "404", "429", "503", "500");
             assertOperation(document.read("$.paths['/api/v1/urls/{shortCode}'].delete"), "204", "404", "429", "503", "500");

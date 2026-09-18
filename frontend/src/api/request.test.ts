@@ -31,9 +31,10 @@ test("apiRequest_offline_doesNotSendRequest", async () => {
 });
 test("apiRequest_timeout_abortsRequestIncludingBodyAndDoesNotRetry", async () => {
   vi.useFakeTimers();
-  const fetcher = vi
-    .fn()
-    .mockResolvedValue({ status: 200, text: () => new Promise(() => {}) });
+  const fetcher = vi.fn().mockResolvedValue({
+    status: 200,
+    arrayBuffer: () => new Promise(() => {}),
+  });
   vi.stubGlobal("fetch", fetcher);
   const outcome = apiRequest("/api/test", { method: "POST" }, 20).catch(
     (error) => error,
@@ -65,4 +66,12 @@ test("failureMessage_unexpectedException_hidesDetails", () => {
     "Check your connection",
   );
   expect(failureMessage(new ApiFailure("timeout"))).toContain("too long");
+});
+
+test("apiRequest_binaryImage_preservesEveryByte", async () => {
+  const bytes = new Uint8Array([137, 80, 78, 71, 0, 255, 128]);
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(bytes)));
+  expect(
+    new Uint8Array(await (await apiRequest("/qr.png")).arrayBuffer()),
+  ).toEqual(bytes);
 });

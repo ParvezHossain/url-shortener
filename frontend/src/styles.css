@@ -822,3 +822,24 @@ dialog::backdrop {
     min-height: 49rem;
   }
 }
+
+.qr-form {
+  display: grid;
+  gap: 1rem;
+}
+.qr-form select {
+  padding: 0.75rem;
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid currentColor;
+  border-radius: 0.5rem;
+}
+.qr-preview {
+  margin-top: 1.5rem;
+  overflow-wrap: anywhere;
+}
+.qr-preview img {
+  max-width: 100%;
+  height: auto;
+}

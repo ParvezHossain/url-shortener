@@ -320,3 +320,44 @@ Redis failure returns 503 / Retry-After: 1 for management; redirects proceed
 without quota headers. Authentication failure remains 401 before rate limiting.
 Do not automatically retry writes whose outcome is unknown. See ARCHITECTURE.md
 section 14 for configuration, privacy review, fixed-window behavior, and metrics.
+
+## Owned QR images (TICKET-F05)
+
+`GET /api/v2/urls/{code}/qr.png` and `GET /api/v2/urls/{code}/qr.svg`
+require the owner's `X-API-Key`. They encode the public short URL from
+`APP_BASE_URL`, never the original destination. They do not resolve the link or
+record a click. Expired links remain available to their owner, matching the
+metadata endpoint; scanning an expired link still receives the normal 410.
+
+| Query parameter | Default | Allowed values |
+|---|---|---|
+| `size` | 256 | Integer pixels, 128–1024, square image |
+| `margin` | 4 | Integer quiet-zone modules, 4–8 |
+| `correction` | M | Uppercase L, M, Q, H |
+
+Each module occupies at least two integer pixels, with the QR centered in the
+requested square. A URL that cannot fit at the requested size returns 400; retry
+with a larger size. Public short URLs are bounded to 2048 UTF-8 bytes, and must
+also fit the QR capacity at the chosen correction level.
+
+```bash
+curl --fail-with-body -H "X-API-Key: $API_KEY" \
+  'http://localhost:8080/api/v2/urls/abc/qr.png?size=512&margin=4&correction=M' \
+  --output abc-qr.png
+curl --fail-with-body -H "X-API-Key: $API_KEY" \
+  'http://localhost:8080/api/v2/urls/abc/qr.svg' --output abc-qr.svg
+```
+
+Successful responses use `image/png` or `image/svg+xml`, `Cache-Control: no-store`,
+`Vary: X-API-Key`, `X-Content-Type-Options: nosniff`, and a restrictive image CSP.
+Images are generated on demand and are not persisted. Missing/invalid credentials
+return 401. Missing and foreign-owned links return the same 404 contract without
+link metadata. Invalid options return 400 ProblemDetail. Both routes consume an
+owner management quota unit when F03 is enabled (429/503 policies apply).
+
+Use **QR codes** in the frontend (`/#/qr`) to enter an owned code and API key,
+preview the PNG, and download either format. Each preview makes three authenticated
+requests: metadata, PNG, and SVG. Downloads reuse those images. The API key is
+held in component memory; it is never placed in a URL, localStorage, or sessionStorage.
+Clear it with the provided button or leave the page. Anonymous v1 links cannot use
+these owner-protected endpoints.

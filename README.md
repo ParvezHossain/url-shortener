@@ -296,3 +296,12 @@ public redirects use pseudonymized direct-client addresses. Exhaustion returns
 429 with quota and Retry-After headers. Redis outages block management with 503
 and allow redirects. See [architecture](docs/ARCHITECTURE.md#14-distributed-request-quotas-ticket-f03)
 for privacy, proxy behavior, and operational limitations.
+
+### QR codes for owned links
+
+Open **QR codes** (`/#/qr`) and supply an owned short code and its API key to
+preview and download PNG or SVG. Credentials stay in page memory. The API routes
+are `GET /api/v2/urls/{code}/qr.png` and `GET /api/v2/urls/{code}/qr.svg`;
+see [QR options and examples](docs/API_REQUESTS.md#owned-qr-images-ticket-f05).
+Images encode the public short URL and are generated on demand with no stored
+blobs. TICKET-F05 adds ZXing Core 3.5.4 for QR encoding and decoding tests.

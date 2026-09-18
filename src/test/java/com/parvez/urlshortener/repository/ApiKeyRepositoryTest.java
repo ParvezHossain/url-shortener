@@ -145,6 +145,26 @@ class ApiKeyRepositoryTest {
                 Long.class, key.owner())).isEqualTo(1);
     }
 
+    @Test
+    void generateQr_unknownOrForeignCode_doesNotDiscloseResource() throws Exception {
+        var first = provision();
+        var second = provision();
+        var owner = authentication.authenticate(first.raw());
+        var created = service.create(new CreateShortUrlRequest("https://example.com/private", null, null), owner);
+        for (String extension : new String[]{"png", "svg"}) {
+            String path = "/api/v2/urls/" + created.shortCode() + "/qr." + extension;
+            assertThat(call("GET", path, null).statusCode()).isEqualTo(401);
+            var foreign = call("GET", path, second.raw());
+            assertThat(foreign.statusCode()).isEqualTo(404);
+            assertThat(foreign.body()).doesNotContain("example.com", created.shortUrl());
+            assertThat(call("GET", "/api/v2/urls/missing/qr." + extension, first.raw()).statusCode()).isEqualTo(404);
+            var success = call("GET", path, first.raw());
+            assertThat(success.statusCode()).isEqualTo(200);
+            assertThat(success.headers().firstValue("Cache-Control")).hasValue("no-store");
+        }
+        assertThat(service.getStats(created.shortCode(), owner).clickCount()).isZero();
+    }
+
     private HttpResponse<String> call(String method, String path, String key) throws Exception {
         var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
                 .timeout(Duration.ofSeconds(10)).method(method, HttpRequest.BodyPublishers.noBody());

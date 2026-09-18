@@ -727,7 +727,7 @@ Redis alongside PostgreSQL.
 ---
 
 ### TICKET-F05 — QR code generation
-**Status:** Backlog.
+**Status:** Implemented.
 
 **Depends on:** TICKET-F01.
 

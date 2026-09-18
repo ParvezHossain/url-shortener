@@ -41,3 +41,21 @@ test("AppShell_analyticsRoute_rendersLookupInsteadOfCreation", () => {
     window.history.replaceState(null, "", "/");
   }
 });
+
+test("AppShell_qrRoute_rendersOwnedQrActions", () => {
+  window.history.replaceState(null, "", "/#/qr");
+  try {
+    render(<AppShell />);
+    expect(screen.getByRole("heading", { name: "QR codes" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "QR codes" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByLabelText("API key")).toHaveAttribute(
+      "type",
+      "password",
+    );
+  } finally {
+    window.history.replaceState(null, "", "/");
+  }
+});

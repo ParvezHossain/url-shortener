@@ -70,6 +70,13 @@
       <version>${springdoc.version}</version>
     </dependency>
 
+    <!-- TICKET-F05: standards-compliant QR encoding and decoding, no image service. -->
+    <dependency>
+      <groupId>com.google.zxing</groupId>
+      <artifactId>core</artifactId>
+      <version>3.5.4</version>
+    </dependency>
+
     <!-- Test -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

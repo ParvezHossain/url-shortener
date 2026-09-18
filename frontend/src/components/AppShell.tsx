@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import { AnalyticsLookup } from "./AnalyticsLookup";
 import { ThemeToggle } from "./ThemeToggle";
 import { CreateUrlForm } from "./CreateUrlForm";
+import { QrCodePanel } from "./QrCodePanel";
 import { Card } from "./ui";
 
 function subscribeRoute(callback: () => void) {
@@ -12,6 +13,7 @@ function subscribeRoute(callback: () => void) {
 /** Provides responsive navigation and a shared content frame for the application. */
 export function AppShell() {
   const hash = useSyncExternalStore(subscribeRoute, () => window.location.hash);
+  const qr = hash.split("?")[0] === "#/qr";
   const analytics = hash.split("?")[0] === "#/analytics";
   const code = new URLSearchParams(hash.split("?")[1] ?? "").get("code") ?? "";
   return (
@@ -42,6 +44,9 @@ export function AppShell() {
             >
               Analytics
             </a>
+            <a href="/#/qr" aria-current={qr ? "page" : undefined}>
+              QR codes
+            </a>
             <a href="/swagger-ui.html">
               API docs <span aria-hidden="true">↗</span>
             </a>
@@ -50,7 +55,9 @@ export function AppShell() {
         </div>
       </header>
       <main id="main" tabIndex={-1} className="container">
-        {analytics ? (
+        {qr ? (
+          <QrCodePanel />
+        ) : analytics ? (
           <AnalyticsLookup key={code} initialCode={code} />
         ) : (
           <>

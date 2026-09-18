@@ -302,3 +302,35 @@ Limits/window must be positive integers; missing/invalid enabled configuration
 fails startup. All instances must use identical configuration and Redis. Defaults
 leave limiting disabled to avoid inventing production policy or a shared secret.
 Compose passes all five variables through; set them before exposing the service.
+
+## 15. QR generation (TICKET-F05)
+
+`QrCodeController` exposes the two v2 image routes and validates `QrOptionsRequest`.
+`QrCodeService` reuses `UrlShortenerService.getStats(code, owner)` for ownership
+and canonical public URL construction. It never calls `resolve`, fetches a
+remote destination, modifies analytics, or persists image data. Unknown and
+foreign links retain the existing indistinguishable 404 behavior. Expired owned
+links are handled like metadata reads. The authentication filter and F03 management
+quota also cover QR routes. Images use no-store rather than a cache whose entries
+could outlive permission changes.
+
+New dependency: `com.google.zxing:core:3.5.4` provides standards-compliant QR
+encoding and decoding for tests. No ZXing JavaSE or frontend QR dependency is
+needed. JDK ImageIO writes PNG; SVG is a fixed application-owned template with
+numeric rectangles and fixed text only. No destination, URL, credential, script,
+external image reference, or user-supplied XML enters the SVG. Geometry is scaled
+by whole pixels, centered, and bounded to 1024 square pixels; a minimum two pixels
+per module avoids undersized output. Margins remain at least four modules. Both
+rendered formats are decoded in tests to the expected public URL. No migrations.
+
+`QrCodePanel` is available at `/#/qr` via the main navigation. It accepts an
+operator-provisioned API key in a password field held only in component memory.
+It fetches owned metadata and both images, then provides PNG preview, accessible
+URL text, and download links. Inputs changing clear the old preview; clearing or
+unmounting revokes object URLs. Pending work is cancelled on unmount and duplicate
+submissions are blocked. This is a focused owned-link workflow; F04 remains backlog.
+The shared request transport now buffers bytes rather than decoding everything
+as text so binary image bytes survive its existing timeout/cancellation boundary.
+Frontend CSP permits `blob:` only for images to support authenticated previews;
+script, object, connection, and frame restrictions are unchanged. SVG downloads
+are never injected into the document as markup.

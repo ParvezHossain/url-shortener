@@ -56,8 +56,8 @@ export async function apiRequest(
       const response = await fetch(url, { ...init, signal: controller.signal });
       if (response.status === 429) throw new ApiFailure("rate-limit");
       if (response.status >= 500) throw new ApiFailure("server");
-      const body = await response.text();
-      return new Response(body || null, {
+      const body = await response.arrayBuffer();
+      return new Response(body.byteLength ? body : null, {
         status: response.status,
         statusText: response.statusText,
         headers: response.headers,
