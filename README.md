@@ -15,7 +15,10 @@ returns HTTP 400. `GET /{shortCode}` redirects active links with HTTP 302 and re
 and last access. Unknown links return 404; expired links return 410 without
 changing analytics. `GET /api/v1/urls/{shortCode}` returns metadata and analytics for active or
 expired links without recording a visit. `DELETE /api/v1/urls/{shortCode}` removes
-a link and its analytics, returning 204; unknown or already-deleted codes return 404. See `docs/API_REQUESTS.md` for the implemented contract.
+a link and its analytics, returning 204; unknown or already-deleted codes return 404.
+Redirect destinations use an optional Redis cache with PostgreSQL fallback; click
+analytics remain persisted synchronously. See `docs/API_REQUESTS.md` for the
+implemented contract.
 
 Planned full feature set:
 - Shorten a URL to a short code (auto-generated, Base62) or a custom alias.
@@ -30,6 +33,7 @@ Planned full feature set:
 | Language | Java 25 |
 | Framework | Spring Boot 4+ (Web, Data JPA, Validation, Actuator) |
 | Database | PostgreSQL |
+| Cache | Redis (best effort; PostgreSQL fallback) |
 | Migrations | Flyway |
 | Build | Maven 3.9+ |
 | Testing | JUnit 6, Mockito, AssertJ, Testcontainers |

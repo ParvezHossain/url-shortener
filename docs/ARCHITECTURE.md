@@ -22,6 +22,15 @@ PostgreSQL  ── table: short_url (see migration V1)
 Redirect path:
 Client → GET /{code} → [RedirectController] → UrlShortenerService.resolve(code)
        → 302 Location: originalUrl  (after transactional click increment)
+
+Redirect resolution uses a cache-aside Redis layer for hot codes. The cache stores
+only the destination and expiry timestamp. A hit atomically increments analytics
+in PostgreSQL without loading the entity; a miss uses the pessimistic row-lock
+path above, then caches the result. Cache TTLs are capped at the remaining link
+lifetime, permanent links use a configurable bounded TTL, and Redis failures fall
+back to PostgreSQL. Deletes and expired resolutions evict entries. Cache metrics
+use fixed operation names (`hits`, `misses`, `evictions`, and `failures`) without
+short-code labels.
 ```
 
 ## 3. Packages and responsibilities
@@ -128,7 +137,6 @@ Compose stack. Any failing verification or container startup fails the job.
 
 ## 9. Future extension points (see TICKETS.md "Future" section)
 - Auth (API keys or OAuth2) → would add a `user_id` FK to `short_url` and a `security` package.
-- Redis cache in front of `resolve()` for hot codes.
 - Rate limiting via Bucket4j at the controller/filter layer.
 - Horizontal scaling: move ID generation off the Postgres sequence to Snowflake-style IDs if multiple write nodes are ever needed.
 

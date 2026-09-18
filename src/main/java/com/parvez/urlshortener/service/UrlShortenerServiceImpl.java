@@ -1,5 +1,7 @@
 package com.parvez.urlshortener.service;
 
+import com.parvez.urlshortener.cache.RedirectCache;
+import com.parvez.urlshortener.cache.RedirectCacheEntry;
 import com.parvez.urlshortener.domain.ShortUrl;
 import com.parvez.urlshortener.dto.request.CreateShortUrlRequest;
 import com.parvez.urlshortener.dto.response.ShortUrlResponse;
@@ -15,12 +17,14 @@ import com.parvez.urlshortener.security.OwnerPrincipal;
 import com.parvez.urlshortener.util.Base62Encoder;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -33,17 +37,32 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
 
     private static final Logger log = LoggerFactory.getLogger(UrlShortenerServiceImpl.class);
     private final ShortUrlRepository repository;
+    private final RedirectCache redirectCache;
     private final String baseUrl;
     private final int maxOriginalUrlLength;
+    private final Duration permanentCacheTtl;
 
     /** Supplies persistence and externally configured link settings. */
     public UrlShortenerServiceImpl(
             ShortUrlRepository repository,
             @Value("${app.base-url}") String baseUrl,
             @Value("${app.short-code.max-original-url-length:2048}") int maxOriginalUrlLength) {
+        this(repository, RedirectCache.noop(), baseUrl, maxOriginalUrlLength, Duration.ofHours(1));
+    }
+
+    /** Supplies persistence, cache, and externally configured link settings. */
+    @Autowired
+    public UrlShortenerServiceImpl(
+            ShortUrlRepository repository,
+            RedirectCache redirectCache,
+            @Value("${app.base-url}") String baseUrl,
+            @Value("${app.short-code.max-original-url-length:2048}") int maxOriginalUrlLength,
+            @Value("${app.cache.redirect.permanent-ttl:PT1H}") Duration permanentCacheTtl) {
         this.repository = repository;
+        this.redirectCache = redirectCache;
         this.baseUrl = baseUrl.replaceAll("/+$", "");
         this.maxOriginalUrlLength = maxOriginalUrlLength;
+        this.permanentCacheTtl = permanentCacheTtl;
     }
 
     /**
@@ -94,12 +113,28 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
     @Override
     @Transactional
     public String resolve(String shortCode) {
+        var cached = redirectCache.get(shortCode);
+        if (cached.isPresent()) {
+            System.out.println("Inside redis: " + cached.get());
+            var entry = cached.get();
+            var now = Instant.now();
+            if (entry.expiresAt() == null || entry.expiresAt().isAfter(now)) {
+                if (repository.recordCachedAccess(shortCode, now) == 1) {
+                    log.info("Resolved short URL with code {}", shortCode);
+                    return entry.destination();
+                }
+            }
+            redirectCache.evict(shortCode);
+        }
+
         var url = repository.findByShortCodeForUpdate(shortCode)
                 .orElseThrow(() -> new UrlNotFoundException(shortCode));
         if (url.isExpired()) {
+            redirectCache.evict(shortCode);
             throw new UrlExpiredException(shortCode);
         }
         url.recordAccess();
+        cache(url);
         log.info("Resolved short URL with code {}", shortCode);
         return url.getOriginalUrl();
     }
@@ -157,7 +192,19 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
                 .orElseThrow(() -> new UrlNotFoundException(shortCode));
         if (!url.belongsTo(ownerId)) throw new UrlNotFoundException(shortCode);
         repository.delete(url);
+        redirectCache.evict(shortCode);
         log.info("Deleted short URL with code {}", shortCode);
+    }
+
+    private void cache(ShortUrl url) {
+        Duration ttl = url.getExpiresAt() == null
+                ? permanentCacheTtl
+                : Duration.between(Instant.now(), url.getExpiresAt());
+
+        System.out.println("TTL: " + ttl);
+
+        redirectCache.put(url.getShortCode(),
+                new RedirectCacheEntry(url.getOriginalUrl(), url.getExpiresAt()), ttl);
     }
 
     private ShortUrlResponse createCustomAlias(CreateShortUrlRequest request, UUID ownerId) {

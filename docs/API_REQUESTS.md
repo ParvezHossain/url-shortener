@@ -209,11 +209,23 @@ registration, owner claiming, or administrative HTTP API is exposed.
 # Read the operator-issued key without putting its literal value in shell history.
 read -rsp 'API key: ' API_KEY
 export API_KEY
+
+# Create a URL.
+
 curl -i http://localhost:8080/api/v2/urls \
   -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' \
   -d '{"originalUrl":"https://example.com/path","customAlias":"owned-demo"}'
+
+# List the owner's URLs.  
+  
 curl -i -H "X-API-Key: $API_KEY" 'http://localhost:8080/api/v2/urls?page=0&size=20'
+
+# Get statistics for one of the owner's URLs.
+
 curl -i -H "X-API-Key: $API_KEY" http://localhost:8080/api/v2/urls/owned-demo
+
+# Delete one of the owner's URLs.
+
 curl -i -X DELETE -H "X-API-Key: $API_KEY" http://localhost:8080/api/v2/urls/owned-demo
 ```
 

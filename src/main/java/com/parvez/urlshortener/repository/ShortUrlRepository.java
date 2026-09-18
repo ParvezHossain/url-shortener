@@ -2,6 +2,7 @@ package com.parvez.urlshortener.repository;
 
 import com.parvez.urlshortener.domain.ShortUrl;
 import jakarta.persistence.LockModeType;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -21,6 +22,14 @@ public interface ShortUrlRepository extends JpaRepository<ShortUrl, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from ShortUrl u where u.shortCode = :shortCode")
     Optional<ShortUrl> findByShortCodeForUpdate(@Param("shortCode") String shortCode);
+
+        /** Atomically records one cached redirect while retaining expiry enforcement. */
+        @Modifying
+        @Query("update ShortUrl u set u.clickCount = u.clickCount + 1, "
+            + "u.lastAccessedAt = :accessedAt where u.shortCode = :shortCode "
+            + "and (u.expiresAt is null or u.expiresAt > :accessedAt)")
+        int recordCachedAccess(@Param("shortCode") String shortCode,
+            @Param("accessedAt") Instant accessedAt);
 
     /** Returns a bounded, deterministically ordered page for one owner. */
     Page<ShortUrl> findByOwnerId(

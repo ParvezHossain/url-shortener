@@ -30,6 +30,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import com.parvez.urlshortener.repository.ShortUrlRepository;
 import com.parvez.urlshortener.util.Base62Encoder;
 import java.time.Instant;
+import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.parvez.urlshortener.cache.RedirectCache;
+import com.parvez.urlshortener.cache.RedirectCacheEntry;
 
 /** Verifies destination validation and generated link creation without a database. */
 @Tag("unit")
@@ -49,6 +52,8 @@ class UrlShortenerServiceImplTest {
 
     @Mock
     private ShortUrlRepository repository;
+    @Mock
+    private RedirectCache redirectCache;
     private UrlShortenerServiceImpl service;
 
     @BeforeEach
@@ -320,6 +325,64 @@ class UrlShortenerServiceImplTest {
         service.resolve("10");
 
         assertThat(url.getLastAccessedAt()).isBetween(before, Instant.now());
+    }
+
+    @Test
+    void resolve_cacheHit_returnsDestinationWithoutLookup() {
+        var serviceWithCache = serviceWithCache();
+        when(redirectCache.get("hot")).thenReturn(Optional.of(
+                new RedirectCacheEntry("https://example.com/cached", null)));
+        when(repository.recordCachedAccess(anyString(), any(Instant.class))).thenReturn(1);
+
+        assertThat(serviceWithCache.resolve("hot")).isEqualTo("https://example.com/cached");
+
+        verify(repository).recordCachedAccess(anyString(), any(Instant.class));
+        verify(repository, never()).findByShortCodeForUpdate(anyString());
+    }
+
+    @Test
+    void resolve_cacheMiss_loadsDatabaseAndCachesResult() {
+        var serviceWithCache = serviceWithCache();
+        var url = new ShortUrl("cold", "https://example.com/database", false, null);
+        when(redirectCache.get("cold")).thenReturn(Optional.empty());
+        when(repository.findByShortCodeForUpdate("cold")).thenReturn(Optional.of(url));
+
+        assertThat(serviceWithCache.resolve("cold")).isEqualTo("https://example.com/database");
+
+        verify(redirectCache).put("cold",
+                new RedirectCacheEntry("https://example.com/database", null), Duration.ofHours(1));
+    }
+
+    @Test
+    void resolve_expiringLink_capsCacheTtlAtExpiry() {
+        var serviceWithCache = serviceWithCache();
+        var expiresAt = Instant.now().plusSeconds(90);
+        var url = new ShortUrl("expiring", "https://example.com/soon", false, expiresAt);
+        when(redirectCache.get("expiring")).thenReturn(Optional.empty());
+        when(repository.findByShortCodeForUpdate("expiring")).thenReturn(Optional.of(url));
+
+        serviceWithCache.resolve("expiring");
+
+        var ttl = org.mockito.ArgumentCaptor.forClass(Duration.class);
+        verify(redirectCache).put(org.mockito.ArgumentMatchers.eq("expiring"),
+                any(RedirectCacheEntry.class), ttl.capture());
+        assertThat(ttl.getValue()).isPositive().isLessThanOrEqualTo(Duration.ofSeconds(90));
+    }
+
+    @Test
+    void delete_existingLink_evictsCachedEntry() {
+        var serviceWithCache = serviceWithCache();
+        var url = new ShortUrl("cached-delete", "https://example.com", false, null);
+        when(repository.findByShortCodeForUpdate("cached-delete")).thenReturn(Optional.of(url));
+
+        serviceWithCache.delete("cached-delete");
+
+        verify(redirectCache).evict("cached-delete");
+    }
+
+    private UrlShortenerServiceImpl serviceWithCache() {
+        return new UrlShortenerServiceImpl(repository, redirectCache, "https://sho.rt", 2048,
+                Duration.ofHours(1));
     }
 
     @Test

@@ -654,7 +654,14 @@ lint, and formatting checks pass. Three provisioning-script tests pass via
 ---
 
 ### TICKET-F02 — Redis redirect cache
-**Status:** Backlog.
+**Status:** Complete (verified 2026-09-18).
+
+**Implementation:** Added a best-effort Redis cache-aside layer for redirect
+destinations. Cache hits use an atomic database update for click analytics, cache
+misses retain the existing locked lookup, and TTLs are capped by link expiry.
+Deletes and expired links evict entries. Redis errors fall back to PostgreSQL,
+with low-cardinality hit, miss, eviction, and failure metrics. Compose now starts
+Redis alongside PostgreSQL.
 
 **Depends on:** TICKET-F01.
 

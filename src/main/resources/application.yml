@@ -5,6 +5,10 @@ spring:
     url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/urlshortener}
     username: ${POSTGRES_USER:urlshortener}
     password: ${POSTGRES_PASSWORD:urlshortener}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -31,6 +35,9 @@ app:
   short-code:
     max-original-url-length: 2048
     custom-alias-pattern: "^[a-zA-Z0-9_-]{3,16}$"
+  cache:
+    redirect:
+      permanent-ttl: ${REDIRECT_CACHE_PERMANENT_TTL:PT1H}
 
 springdoc:
   override-with-generic-response: false

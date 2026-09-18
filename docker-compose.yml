@@ -23,6 +23,18 @@ services:
       retries: 10
       start_period: 5s
 
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   app:
     build:
       context: .
@@ -30,11 +42,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: docker
       POSTGRES_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-urlshortener}
       POSTGRES_USER: ${POSTGRES_USER:-urlshortener}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-urlshortener}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       APP_V1_SUNSET: ${APP_V1_SUNSET:-}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
     ports:
