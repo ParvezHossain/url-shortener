@@ -7,6 +7,8 @@ spring:
     password: ${POSTGRES_PASSWORD:urlshortener}
   data:
     redis:
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:1s}
+      timeout: ${REDIS_COMMAND_TIMEOUT:1s}
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
   jpa:
@@ -30,6 +32,12 @@ management:
       show-details: when-authorized
 
 app:
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:false}
+    secret: ${RATE_LIMIT_SECRET:7f3c9a2e5b814d06c2a97e4f1b6d83a0e9c5472f8a31c6d5e0b794a2f63d18c}
+    management: ${RATE_LIMIT_MANAGEMENT:1}
+    redirect: ${RATE_LIMIT_REDIRECT:1}
+    window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:1}
   v1-sunset: ${APP_V1_SUNSET:}
   base-url: ${APP_BASE_URL:http://localhost:8080}
   short-code:

@@ -288,3 +288,35 @@ changing OpenAPI configuration. Swagger directly on port 8080 works the same way
 A standalone `CorsConfigurationSource` bean does not itself install a CORS filter.
 Skipping authentication for OPTIONS alone also does not produce CORS response
 headers. The development proxy workflow does not require cross-origin API access.
+
+## Request quotas (TICKET-F03)
+
+When distributed limiting is enabled, all URL/key management requests consume
+one owner-wide quota unit (v1 uses the direct client IP); public redirects consume
+one client quota unit across all codes. API-key rotation does not reset owner quotas.
+Successful admission includes `RateLimit-Limit`, `RateLimit-Remaining`, and
+`RateLimit-Reset` (seconds until reset). Exhausted quotas return HTTP 429 with
+`application/problem+json`, those same headers, `Cache-Control: no-store`, and
+`Retry-After` in seconds. Requests rejected by the limiter do not reach the service.
+The three RateLimit fields follow the widely deployed
+[IETF draft-06 convention](https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-ratelimit-headers-06),
+not a claim that those fields are a finalized RFC.
+
+Example exhausted response (quota values depend on deployment configuration):
+
+```http
+HTTP/1.1 429 Too Many Requests
+Content-Type: application/problem+json
+Cache-Control: no-store
+RateLimit-Limit: 100
+RateLimit-Remaining: 0
+RateLimit-Reset: 25
+Retry-After: 25
+
+{"type":"about:blank","title":"Too Many Requests","status":429,"detail":"Request quota exceeded. Retry after the indicated delay.","instance":"/api/v2/urls"}
+```
+
+Redis failure returns 503 / Retry-After: 1 for management; redirects proceed
+without quota headers. Authentication failure remains 401 before rate limiting.
+Do not automatically retry writes whose outcome is unknown. See ARCHITECTURE.md
+section 14 for configuration, privacy review, fixed-window behavior, and metrics.

@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Redirects short codes to their resolved destinations. */
 @RestController
+@ApiResponses({
+    @ApiResponse(responseCode = "429", ref = "#/components/responses/RateLimited")
+})
 public class RedirectController {
 
     private final UrlShortenerService service;

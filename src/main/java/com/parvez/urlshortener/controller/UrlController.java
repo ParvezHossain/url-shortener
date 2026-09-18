@@ -23,6 +23,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Maps URL creation, statistics, and deletion requests to the application service. */
 @RestController
+@ApiResponses({
+    @ApiResponse(responseCode = "429", ref = "#/components/responses/RateLimited"),
+    @ApiResponse(responseCode = "503", ref = "#/components/responses/QuotaUnavailable")
+})
 @RequestMapping("/api/v1/urls")
 public class UrlController {
 

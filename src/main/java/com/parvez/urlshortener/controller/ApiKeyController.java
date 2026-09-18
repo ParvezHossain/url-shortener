@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v2/keys")
 @SecurityRequirement(name = "ApiKey")
 @ApiResponses({
+    @ApiResponse(responseCode = "429", ref = "#/components/responses/RateLimited"),
+    @ApiResponse(responseCode = "503", ref = "#/components/responses/QuotaUnavailable"),
     @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
     @ApiResponse(responseCode = "403", ref = "#/components/responses/Forbidden")
 })

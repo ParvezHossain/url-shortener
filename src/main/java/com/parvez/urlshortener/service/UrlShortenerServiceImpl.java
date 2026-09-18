@@ -115,7 +115,6 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
     public String resolve(String shortCode) {
         var cached = redirectCache.get(shortCode);
         if (cached.isPresent()) {
-            System.out.println("Inside redis: " + cached.get());
             var entry = cached.get();
             var now = Instant.now();
             if (entry.expiresAt() == null || entry.expiresAt().isAfter(now)) {
@@ -200,8 +199,6 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
         Duration ttl = url.getExpiresAt() == null
                 ? permanentCacheTtl
                 : Duration.between(Instant.now(), url.getExpiresAt());
-
-        System.out.println("TTL: " + ttl);
 
         redirectCache.put(url.getShortCode(),
                 new RedirectCacheEntry(url.getOriginalUrl(), url.getExpiresAt()), ttl);

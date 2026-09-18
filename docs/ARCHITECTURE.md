@@ -42,7 +42,7 @@ short-code labels.
 | `domain` | JPA entities (`ShortUrl`) | — |
 | `dto` | Request/response records, never shared with `domain` | — |
 | `exception` | Domain exceptions + `GlobalExceptionHandler` (`@RestControllerAdvice`) | — |
-| `config` | `OpenApiConfig`, `CacheConfig`, `RateLimitConfig` (future) | — |
+| `config` | `OpenApiConfig`, `CacheConfig`, `RateLimitConfig` | — |
 | `util` | `Base62Encoder`, stateless helpers | — |
 
 Dependency direction is strictly top-to-bottom in the table; `domain`/`util`/`exception` have no outward dependencies.
@@ -137,7 +137,7 @@ Compose stack. Any failing verification or container startup fails the job.
 
 ## 9. Future extension points (see TICKETS.md "Future" section)
 - Auth (API keys or OAuth2) → would add a `user_id` FK to `short_url` and a `security` package.
-- Rate limiting via Bucket4j at the controller/filter layer.
+- Distributed rate limiting is implemented in TICKET-F03; see section 14.
 - Horizontal scaling: move ID generation off the Postgres sequence to Snowflake-style IDs if multiple write nodes are ever needed.
 
 ## 10. Frontend foundation (TICKET-014)
@@ -255,3 +255,50 @@ are interpreted as UTC, matching Hibernate's Instant writes. A populated-databas
 migration test verifies preservation of legacy destinations, codes, clicks, expiry,
 and NULL ownership. MySQL is not a supported runtime here (no driver/Flyway module
 in pom.xml); these migrations target the configured PostgreSQL location only.
+
+## 14. Distributed request quotas (TICKET-F03)
+
+`RateLimitInterceptor` runs after API-key authentication and MVC routing, before
+URL/key management or redirect controller execution. All mapped v2 management
+calls share a bucket by authenticated owner UUID, regardless of API-key prefix;
+rotation and multiple keys cannot multiply the owner's quota. Legacy v1 calls
+share a separate anonymous management bucket by client address. GET and HEAD
+redirects share a client bucket across short codes. Failed downstream requests
+consume quota; rejected requests do not extend the window. OPTIONS, frontend,
+static assets, health, and API documentation are excluded. Unknown v2 routes
+still require authentication, but do not consume quota.
+
+`RateLimitService` uses a single Redis Lua script to atomically admit and increment
+requests and set expiry on the first request. A fixed window starts at that first
+request, using Redis TTL rather than application clocks. Denied requests neither
+increment nor extend it. Two instances share the same quota, and no local fallback
+counter can multiply it. Fixed windows allow bursts across a window boundary.
+Redis key eviction, restart without persistence, or changing policy resets quotas;
+use a dedicated, capacity-managed Redis deployment with persistence/noeviction
+when quota continuity across Redis restarts is required. This is a request quota,
+not a billing or stored-link quota. No database changes or dependencies are added.
+
+Privacy review: bucket suffixes are HMAC-SHA256 of a namespaced owner UUID or the
+socket peer address using a shared secret of at least 32 bytes. Redis never receives
+raw IP addresses, API keys, destinations, or owner IDs. Keys expire after the
+configured window; no identities appear in logs or metric labels. Digests are
+pseudonymous, not anonymous, and remain correlatable while the secret is unchanged.
+Forwarded/X-Forwarded-For headers are ignored. Keep server forwarded-header handling
+disabled (the default); behind a proxy, clients share the proxy's quota. Supporting
+trusted proxy client extraction requires an explicit deployment trust policy.
+Rotate the shared secret across all instances together; rotation resets buckets.
+
+Management fails closed with 503 and Retry-After: 1 when Redis cannot decide.
+Redirects fail open on Redis errors to preserve existing link availability.
+Store failures increment `rate.limit.requests{category, outcome="unavailable"}`;
+normal outcomes are `allowed` and `denied`. Categories are fixed `management` and
+`redirect`; no identity labels. Monitor failures because redirects are unprotected
+during Redis outages. Redis connection/command timeouts default to one second and can be tuned through
+`REDIS_CONNECT_TIMEOUT` / `REDIS_COMMAND_TIMEOUT`.
+
+Enable using `RATE_LIMIT_ENABLED=true`, `RATE_LIMIT_SECRET`,
+`RATE_LIMIT_MANAGEMENT`, `RATE_LIMIT_REDIRECT`, and `RATE_LIMIT_WINDOW_SECONDS`.
+Limits/window must be positive integers; missing/invalid enabled configuration
+fails startup. All instances must use identical configuration and Redis. Defaults
+leave limiting disabled to avoid inventing production policy or a shared secret.
+Compose passes all five variables through; set them before exposing the service.

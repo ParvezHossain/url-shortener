@@ -283,3 +283,16 @@ for creation, listing, stats, deletion, rotation, revocation, and recovery.
 V1 is deprecated and restricted to unowned legacy links. `APP_V1_SUNSET` optionally
 retires v1 management with 410; public short-link redirects remain available.
 The current frontend continues using v1 until the owner dashboard ticket F07.
+
+### Owner-aware request quotas
+
+TICKET-F03 adds Redis-backed quotas shared across application instances. Enable
+with `RATE_LIMIT_ENABLED=true` and supply `RATE_LIMIT_SECRET` (random, at least
+32 bytes), `RATE_LIMIT_MANAGEMENT`, `RATE_LIMIT_REDIRECT`, and
+`RATE_LIMIT_WINDOW_SECONDS` (positive integers). These settings have no production
+policy defaults: limiting is disabled until configured. Use identical settings
+and Redis on every instance. Management limits apply per owner across API keys;
+public redirects use pseudonymized direct-client addresses. Exhaustion returns
+429 with quota and Retry-After headers. Redis outages block management with 503
+and allow redirects. See [architecture](docs/ARCHITECTURE.md#14-distributed-request-quotas-ticket-f03)
+for privacy, proxy behavior, and operational limitations.

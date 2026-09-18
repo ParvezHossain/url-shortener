@@ -31,8 +31,6 @@ public class ApiKeyService {
 
         String prefix = raw.substring(4, 28);
 
-        System.out.println("prefix: " + prefix);
-
         var row = repository.findForUpdate(prefix);
         String expected = row.map(ApiKeyRepository.KeyRecord::hash).orElse("0".repeat(64));
         boolean matches = MessageDigest.isEqual(hash(raw).getBytes(StandardCharsets.US_ASCII),

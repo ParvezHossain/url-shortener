@@ -683,7 +683,7 @@ Redis alongside PostgreSQL.
 ---
 
 ### TICKET-F03 — Owner-aware rate limiting and quotas
-**Status:** Backlog.
+**Status:** Implemented.
 
 **Depends on:** TICKET-F01 and TICKET-F02.
 

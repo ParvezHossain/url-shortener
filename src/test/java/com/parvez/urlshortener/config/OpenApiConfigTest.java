@@ -47,11 +47,11 @@ class OpenApiConfigTest {
             assertThat(document.<String>read("$.components.securitySchemes.ApiKey.name")).isEqualTo("X-API-Key");
             assertThat(document.<java.util.List<?>>read("$.paths['/api/v2/urls'].post.security")).isNotEmpty();
             assertThat(document.<Map<String, Object>>read("$.paths['/api/v2/urls'].post.responses"))
-                    .containsKeys("201", "400", "401", "403", "409");
-            assertOperation(document.read("$.paths['/api/v1/urls'].post"), "201", "400", "409", "500");
-            assertOperation(document.read("$.paths['/api/v1/urls/{shortCode}'].get"), "200", "404", "500");
-            assertOperation(document.read("$.paths['/api/v1/urls/{shortCode}'].delete"), "204", "404", "500");
-            assertOperation(document.read("$.paths['/{shortCode}'].get"), "302", "404", "410", "500");
+                    .containsKeys("201", "400", "401", "403", "409", "429", "503");
+            assertOperation(document.read("$.paths['/api/v1/urls'].post"), "201", "400", "409", "429", "503", "500");
+            assertOperation(document.read("$.paths['/api/v1/urls/{shortCode}'].get"), "200", "404", "429", "503", "500");
+            assertOperation(document.read("$.paths['/api/v1/urls/{shortCode}'].delete"), "204", "404", "429", "503", "500");
+            assertOperation(document.read("$.paths['/{shortCode}'].get"), "302", "404", "410", "429", "500");
             assertThat(document.<Map<String, Object>>read(
                     "$.paths['/{shortCode}'].get.responses['302'].headers"))
                     .containsKeys("Location", "Cache-Control");
