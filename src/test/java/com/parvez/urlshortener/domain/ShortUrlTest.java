@@ -64,4 +64,16 @@ class ShortUrlTest {
         assertThat(url.getClickCount()).isEqualTo(2);
         assertThat(url.getLastAccessedAt()).isBetween(beforeSecondAccess, Instant.now());
     }
+    @Test
+    void applySafety_newLink_startsPendingAndActivatesOnlyWithSafeState() {
+        var url = new ShortUrl("scan", "https://example.com", false, null);
+        assertThat(url.getSafetyState()).isEqualTo(SafetyState.PENDING);
+        assertThat(url.isActive()).isFalse();
+        for (var state : SafetyState.values()) {
+            url.applySafety(state, "test", Instant.now());
+            assertThat(url.getSafetyState()).isEqualTo(state);
+            assertThat(url.isActive()).isEqualTo(state == SafetyState.ACTIVE);
+        }
+    }
+
 }

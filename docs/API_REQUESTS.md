@@ -361,3 +361,17 @@ requests: metadata, PNG, and SVG. Downloads reuse those images. The API key is
 held in component memory; it is never placed in a URL, localStorage, or sessionStorage.
 Clear it with the provided button or leave the page. Anonymous v1 links cannot use
 these owner-protected endpoints.
+
+
+## Link safety (TICKET-F06)
+
+Both `POST /api/v1/urls` and `POST /api/v2/urls` scan destinations synchronously.
+Configure `SAFETY_SCANNER_ENDPOINT` before creating links; an empty setting returns
+503. See [the scanner contract](ARCHITECTURE.md#16-link-safety-ticket-f06).
+Successful 201 responses contain the normalized destination and indicate an active
+link. Private/internal destinations, unsupported schemes, and credentials return
+400. Known-malicious destinations return 422; scanner or DNS unavailability
+returns 503. Errors use `application/problem+json` and expose no provider payload.
+Rejected/failed scans retain inactive records and reserve their aliases; after
+recovery use a new alias or omit it. No automatic retry/rescan is performed.
+Non-active codes return 404 on public redirects, without a Location header or click.

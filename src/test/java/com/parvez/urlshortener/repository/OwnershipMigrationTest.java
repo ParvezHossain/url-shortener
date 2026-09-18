@@ -31,13 +31,16 @@ class OwnershipMigrationTest {
                 .locations("classpath:db/migration/postgres").load().migrate();
         try (var connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
                 var statement = connection.createStatement();
-                var result = statement.executeQuery("select short_code, original_url, owner_id, click_count, expires_at from short_url")) {
+                var result = statement.executeQuery("select short_code, original_url, owner_id, click_count, expires_at, safety_state, safety_provider, scanned_at from short_url")) {
             assertThat(result.next()).isTrue();
             assertThat(result.getString("short_code")).isEqualTo("legacy");
             assertThat(result.getString("original_url")).isEqualTo("https://example.com");
             assertThat(result.getObject("owner_id")).isNull();
             assertThat(result.getLong("click_count")).isEqualTo(7);
             assertThat(result.getTimestamp("expires_at").toInstant()).isEqualTo(Instant.parse("2030-01-01T00:00:00Z"));
+            assertThat(result.getString("safety_state")).isEqualTo("ACTIVE");
+            assertThat(result.getString("safety_provider")).isEqualTo("legacy-unscanned");
+            assertThat(result.getTimestamp("scanned_at")).isNull();
             assertThat(result.next()).isFalse();
         }
     }

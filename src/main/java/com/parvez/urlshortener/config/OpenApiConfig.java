@@ -69,6 +69,8 @@ public class OpenApiConfig {
                 .addResponses("QuotaUnavailable", problemResponse("Quota store unavailable; management fails closed")
                         .addHeaderObject("Retry-After", new io.swagger.v3.oas.models.headers.Header()
                                 .description("Seconds until retry").schema(new IntegerSchema())))
+                .addResponses("UnsafeDestination", problemResponse("Destination rejected by link safety checks"))
+                .addResponses("CreationUnavailable", problemResponse("Safety scanner, DNS, or quota store unavailable; creation fails closed"))
                 .addResponses("Unauthorized", problemResponse("Missing, invalid, or revoked API key"))
                 .addResponses("Forbidden", problemResponse("Authenticated caller lacks permission"))
                 .addResponses("BadRequest", problemResponse("Invalid URL, alias, expiry, validation failure, or malformed JSON"))

@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
+      COMPOSE_FILE: docker-compose.yml:docker-compose.ci.yml
       COMPOSE_PROJECT_NAME: urlshortener-ci
       APP_PORT: '18080'
       POSTGRES_PORT: '25432'

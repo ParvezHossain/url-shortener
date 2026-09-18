@@ -55,10 +55,15 @@ class UrlShortenerServiceImplTest {
     @Mock
     private RedirectCache redirectCache;
     private UrlShortenerServiceImpl service;
+    @Mock private SafetyScanService safety;
 
     @BeforeEach
     void setUp() {
-        service = new UrlShortenerServiceImpl(repository, "https://sho.rt/", 2048);
+        org.mockito.Mockito.lenient().when(safety.inspect(anyString())).thenAnswer(invocation ->
+                new SafetyScanService.Assessment(invocation.getArgument(0),
+                        com.parvez.urlshortener.domain.SafetyState.ACTIVE, "test", Instant.now()));
+        service = new UrlShortenerServiceImpl(repository, RedirectCache.noop(), safety,
+                "https://sho.rt/", 2048, Duration.ofHours(1));
     }
 
     @Test
@@ -286,6 +291,7 @@ class UrlShortenerServiceImplTest {
         var url = new ShortUrl("expired", "https://example.com", true, Instant.now().minusSeconds(60));
         url.recordAccess();
         var lastAccessedAt = url.getLastAccessedAt();
+        url.applySafety(com.parvez.urlshortener.domain.SafetyState.ACTIVE, "test", Instant.now());
         when(repository.findByShortCodeForUpdate("expired")).thenReturn(Optional.of(url));
 
         assertThatThrownBy(() -> service.resolve("expired"))
@@ -300,6 +306,7 @@ class UrlShortenerServiceImplTest {
     void resolve_validCode_returnsOriginalUrl(boolean expiring) {
         var url = new ShortUrl("My_link-1", "https://example.com/path?q=1#section", true,
                 expiring ? Instant.now().plusSeconds(3600) : null);
+        url.applySafety(com.parvez.urlshortener.domain.SafetyState.ACTIVE, "test", Instant.now());
         when(repository.findByShortCodeForUpdate("My_link-1")).thenReturn(Optional.of(url));
 
         assertThat(service.resolve("My_link-1")).isEqualTo("https://example.com/path?q=1#section");
@@ -309,6 +316,7 @@ class UrlShortenerServiceImplTest {
     void resolve_validCode_incrementsClickCount() {
         var url = new ShortUrl("10", "https://example.com", false, null);
         url.recordAccess();
+        url.applySafety(com.parvez.urlshortener.domain.SafetyState.ACTIVE, "test", Instant.now());
         when(repository.findByShortCodeForUpdate("10")).thenReturn(Optional.of(url));
 
         service.resolve("10");
@@ -319,6 +327,7 @@ class UrlShortenerServiceImplTest {
     @Test
     void resolve_validCode_updatesLastAccessedAt() {
         var url = new ShortUrl("10", "https://example.com", false, null);
+        url.applySafety(com.parvez.urlshortener.domain.SafetyState.ACTIVE, "test", Instant.now());
         when(repository.findByShortCodeForUpdate("10")).thenReturn(Optional.of(url));
         var before = Instant.now();
 
@@ -345,6 +354,7 @@ class UrlShortenerServiceImplTest {
         var serviceWithCache = serviceWithCache();
         var url = new ShortUrl("cold", "https://example.com/database", false, null);
         when(redirectCache.get("cold")).thenReturn(Optional.empty());
+        url.applySafety(com.parvez.urlshortener.domain.SafetyState.ACTIVE, "test", Instant.now());
         when(repository.findByShortCodeForUpdate("cold")).thenReturn(Optional.of(url));
 
         assertThat(serviceWithCache.resolve("cold")).isEqualTo("https://example.com/database");
@@ -359,6 +369,7 @@ class UrlShortenerServiceImplTest {
         var expiresAt = Instant.now().plusSeconds(90);
         var url = new ShortUrl("expiring", "https://example.com/soon", false, expiresAt);
         when(redirectCache.get("expiring")).thenReturn(Optional.empty());
+        url.applySafety(com.parvez.urlshortener.domain.SafetyState.ACTIVE, "test", Instant.now());
         when(repository.findByShortCodeForUpdate("expiring")).thenReturn(Optional.of(url));
 
         serviceWithCache.resolve("expiring");
@@ -373,6 +384,7 @@ class UrlShortenerServiceImplTest {
     void delete_existingLink_evictsCachedEntry() {
         var serviceWithCache = serviceWithCache();
         var url = new ShortUrl("cached-delete", "https://example.com", false, null);
+        url.applySafety(com.parvez.urlshortener.domain.SafetyState.ACTIVE, "test", Instant.now());
         when(repository.findByShortCodeForUpdate("cached-delete")).thenReturn(Optional.of(url));
 
         serviceWithCache.delete("cached-delete");
@@ -381,7 +393,7 @@ class UrlShortenerServiceImplTest {
     }
 
     private UrlShortenerServiceImpl serviceWithCache() {
-        return new UrlShortenerServiceImpl(repository, redirectCache, "https://sho.rt", 2048,
+        return new UrlShortenerServiceImpl(repository, redirectCache, safety, "https://sho.rt", 2048,
                 Duration.ofHours(1));
     }
 
@@ -457,6 +469,7 @@ class UrlShortenerServiceImplTest {
     void delete_existingCode_removesEntity(boolean expired) {
         var url = new ShortUrl("my-link", "https://example.com", true,
                 expired ? Instant.now().minusSeconds(60) : null);
+        url.applySafety(com.parvez.urlshortener.domain.SafetyState.ACTIVE, "test", Instant.now());
         when(repository.findByShortCodeForUpdate("my-link")).thenReturn(Optional.of(url));
 
         service.delete("my-link");
@@ -546,6 +559,7 @@ class UrlShortenerServiceImplTest {
     void delete_ownedCode_removesLink() {
         var owner = new com.parvez.urlshortener.security.OwnerPrincipal(java.util.UUID.randomUUID(), "prefix");
         var url = new ShortUrl("owned", "https://example.com", true, null, owner.ownerId());
+        url.applySafety(com.parvez.urlshortener.domain.SafetyState.ACTIVE, "test", Instant.now());
         when(repository.findByShortCodeForUpdate("owned")).thenReturn(Optional.of(url));
         service.delete("owned", owner);
         verify(repository).delete(url);
@@ -593,4 +607,50 @@ class UrlShortenerServiceImplTest {
                 .isInstanceOf(com.parvez.urlshortener.exception.ApiAuthenticationException.class);
         verifyNoInteractions(repository);
     }
+    @Test
+    void create_safeDestination_activatesLink() {
+        when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        service.create(new CreateShortUrlRequest("https://example.com", "safe", null));
+        var captor = ArgumentCaptor.forClass(ShortUrl.class);
+        verify(repository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().isActive()).isTrue();
+    }
+
+    @Test
+    void create_maliciousDestination_rejectsLink() {
+        when(safety.inspect(anyString())).thenReturn(new SafetyScanService.Assessment("https://example.com/",
+                com.parvez.urlshortener.domain.SafetyState.REJECTED, "test", Instant.now()));
+        when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        assertThatThrownBy(() -> service.create(new CreateShortUrlRequest("https://example.com", "bad", null)))
+                .isInstanceOf(com.parvez.urlshortener.exception.UnsafeDestinationException.class);
+        var captor = ArgumentCaptor.forClass(ShortUrl.class);
+        verify(repository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getSafetyState()).isEqualTo(com.parvez.urlshortener.domain.SafetyState.REJECTED);
+    }
+
+    @Test
+    void create_scannerTimeout_appliesDocumentedFailurePolicy() {
+        when(safety.inspect(anyString())).thenReturn(new SafetyScanService.Assessment("https://example.com/",
+                com.parvez.urlshortener.domain.SafetyState.SCAN_FAILED, "test", Instant.now()));
+        when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        assertThatThrownBy(() -> service.create(new CreateShortUrlRequest("https://example.com", "failed", null)))
+                .isInstanceOf(com.parvez.urlshortener.exception.SafetyScanUnavailableException.class);
+        var captor = ArgumentCaptor.forClass(ShortUrl.class);
+        verify(repository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getSafetyState()).isEqualTo(com.parvez.urlshortener.domain.SafetyState.SCAN_FAILED);
+    }
+
+    @Test
+    void create_privateNetworkDestination_isRejectedBeforeProviderCall() {
+        var provider = mock(com.parvez.urlshortener.safety.SafetyProvider.class);
+        var policy = new DestinationPolicy(host -> new java.net.InetAddress[] {java.net.InetAddress.getByName("127.0.0.1")}, "");
+        var scanner = new SafetyScanService(policy, provider, mock(org.springframework.data.redis.core.StringRedisTemplate.class),
+                mock(com.parvez.urlshortener.repository.SafetyAuditRepository.class),
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry(), Duration.ofMinutes(15));
+        var subject = new UrlShortenerServiceImpl(repository, redirectCache, scanner, "https://sho.rt", 2048, Duration.ofHours(1));
+        assertThatThrownBy(() -> subject.create(new CreateShortUrlRequest("http://localhost", null, null)))
+                .isInstanceOf(InvalidUrlException.class);
+        verifyNoInteractions(provider, repository);
+    }
+
 }

@@ -29,7 +29,6 @@ import org.springframework.web.bind.annotation.RestController;
 @SecurityRequirement(name = "ApiKey")
 @ApiResponses({
     @ApiResponse(responseCode = "429", ref = "#/components/responses/RateLimited"),
-    @ApiResponse(responseCode = "503", ref = "#/components/responses/QuotaUnavailable"),
     @ApiResponse(responseCode = "401", ref = "#/components/responses/Unauthorized"),
     @ApiResponse(responseCode = "403", ref = "#/components/responses/Forbidden")
 })
@@ -42,6 +41,8 @@ public class V2UrlController {
     @ApiResponse(responseCode = "201", description = "Owned link created")
     @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest")
     @ApiResponse(responseCode = "409", ref = "#/components/responses/Conflict")
+    @ApiResponse(responseCode = "422", ref = "#/components/responses/UnsafeDestination")
+    @ApiResponse(responseCode = "503", ref = "#/components/responses/CreationUnavailable")
     @PostMapping
     public ResponseEntity<ShortUrlResponse> create(@RequestAttribute("owner") OwnerPrincipal owner,
             @Valid @RequestBody CreateShortUrlRequest request) {
@@ -52,6 +53,7 @@ public class V2UrlController {
     /** Reads owned statistics without recording a click. */
     @Operation(summary = "Get owned link statistics")
     @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound")
+    @ApiResponse(responseCode = "503", ref = "#/components/responses/QuotaUnavailable")
     @GetMapping("/{code}")
     public ShortUrlStatsResponse stats(@RequestAttribute("owner") OwnerPrincipal owner, @PathVariable String code) {
         return service.getStats(code, owner);
@@ -59,6 +61,7 @@ public class V2UrlController {
     /** Lists owned links with bounded pagination. */
     @Operation(summary = "List owned links", description = "Zero-based pages, size 1–100; creation time and ID descending.")
     @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest")
+    @ApiResponse(responseCode = "503", ref = "#/components/responses/QuotaUnavailable")
     @GetMapping
     public UrlPageResponse list(@RequestAttribute("owner") OwnerPrincipal owner,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
@@ -68,6 +71,7 @@ public class V2UrlController {
     @Operation(summary = "Delete an owned link")
     @ApiResponse(responseCode = "204", description = "Owned link deleted")
     @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound")
+    @ApiResponse(responseCode = "503", ref = "#/components/responses/QuotaUnavailable")
     @DeleteMapping("/{code}")
     public ResponseEntity<Void> delete(@RequestAttribute("owner") OwnerPrincipal owner, @PathVariable String code) {
         service.delete(code, owner);

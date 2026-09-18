@@ -44,6 +44,7 @@ short-code labels.
 | `exception` | Domain exceptions + `GlobalExceptionHandler` (`@RestControllerAdvice`) | — |
 | `config` | `OpenApiConfig`, `CacheConfig`, `RateLimitConfig` | — |
 | `util` | `Base62Encoder`, stateless helpers | — |
+| `safety` | Pluggable provider HTTP transport and DNS resolver contracts | `exception` |
 
 Dependency direction is strictly top-to-bottom in the table; `domain`/`util`/`exception` have no outward dependencies.
 
@@ -334,3 +335,63 @@ as text so binary image bytes survive its existing timeout/cancellation boundary
 Frontend CSP permits `blob:` only for images to support authenticated previews;
 script, object, connection, and frame restrictions are unchanged. SVG downloads
 are never injected into the document as markup.
+
+
+## 16. Link safety (TICKET-F06)
+
+Creation in both API versions activates links **synchronously**. Input shape,
+expiry and alias checks precede destination normalization and DNS policy checks.
+Normalization lowercases scheme/host, removes a trailing host dot, default ports
+and fragments, normalizes dot segments, and preserves encoded path/query bytes.
+Only HTTP(S), without embedded credentials or scoped IPv6 addresses, is allowed.
+All resolved addresses must be public; private, loopback, link-local, multicast,
+reserved/documentation and common transition ranges are blocked. Operators can
+extend the block list with `SAFETY_BLOCKED_CIDRS` (comma-separated CIDRs).
+DNS has a two-second wait bound and is repeated even on verdict-cache hits.
+Policy rejection returns 400; unavailable DNS returns 503 before insertion.
+The application never fetches the submitted destination itself. A provider that
+fetches URLs must independently enforce address checks on every connection and
+redirect; this submission-time check is not protection against later DNS changes.
+
+`SafetyProvider` is the replacement boundary. The default HTTP adapter POSTs
+`{"url":"https://example.com/path"}` to `SAFETY_SCANNER_ENDPOINT`, optionally with
+`Authorization: Bearer <SAFETY_SCANNER_TOKEN>`. It requires HTTP 200,
+`Content-Type: application/json`, and `{"verdict":"SAFE"}` or
+`{"verdict":"MALICIOUS"}`. Responses are capped at 4096 bytes. Configure a trusted
+adapter, preferably over HTTPS; this is a protocol, not a built-in malware feed.
+The application does not follow provider redirects. One attempt is made per cache
+miss, with no application retries or asynchronous jobs. `SAFETY_SCANNER_TIMEOUT`
+(default PT2S, allowed 100ms–10s) bounds the provider request including body reads.
+
+V4 adds `PENDING`, `ACTIVE`, `REJECTED`, and `SCAN_FAILED`. New entities and direct
+SQL inserts default to PENDING. SAFE produces ACTIVE and 201. MALICIOUS persists
+REJECTED and returns a generic 422 ProblemDetail. Missing configuration, timeout,
+malformed/oversized responses and provider errors persist SCAN_FAILED and return
+a generic 503. Rejected/failed link records commit despite the error response;
+their codes and requested aliases remain reserved. They never receive a Location
+header. There is no rescan endpoint: after an outage, submit with a new alias or
+no alias. Pending records are not queued for background work. Existing pre-V4
+links remain ACTIVE, explicitly labelled `legacy-unscanned` with no scan time;
+they are not represented as having a safe verdict.
+
+Every redirect checks ACTIVE in PostgreSQL, including the atomic click update
+on a Redis hit. Non-active links return 404 without destination or analytics
+changes and evict any stale redirect entry. Existing active links continue to
+redirect during scanner outages; scan cache expiry does not revoke activation.
+
+Definitive verdicts are cached in Redis under a SHA-256 hash of the normalized
+URL plus the provider revision, for `SAFETY_CACHE_TTL` (default PT15M, allowed
+1 second–1 day). Stored timestamps are validated and cache hits never extend
+freshness. Failures are never cached. Redis failure falls back to the provider.
+Change `SAFETY_SCANNER_PROVIDER` when changing endpoints or scanner policy so
+old verdicts cannot cross configurations. Avoid destination/owner metric labels.
+
+`safety_audit` records the URL hash, provider revision, verdict, original scan
+timestamp, cache flag and audit timestamp in an independent transaction, even
+when link creation later rolls back. Raw URLs and provider response bodies are
+not stored in the audit. Its `(url_hash, recorded_at DESC)` index supports history
+lookup. Audit-write failure prevents activation. Provider outages are observable
+through `safety.scans{outcome=SCAN_FAILED,source=provider}`; Redis errors through
+`safety.cache{outcome=failure}`. `safety.policy` distinguishes invalid destinations
+from unavailable DNS. Audit retention is unchanged: no automatic deletion policy
+is introduced.

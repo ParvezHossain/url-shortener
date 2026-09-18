@@ -24,8 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** Maps URL creation, statistics, and deletion requests to the application service. */
 @RestController
 @ApiResponses({
-    @ApiResponse(responseCode = "429", ref = "#/components/responses/RateLimited"),
-    @ApiResponse(responseCode = "503", ref = "#/components/responses/QuotaUnavailable")
+    @ApiResponse(responseCode = "429", ref = "#/components/responses/RateLimited")
 })
 @RequestMapping("/api/v1/urls")
 public class UrlController {
@@ -45,6 +44,8 @@ public class UrlController {
                 content = @Content(mediaType = "application/json", schema = @Schema(implementation = ShortUrlResponse.class))),
         @ApiResponse(responseCode = "400", ref = "#/components/responses/BadRequest"),
         @ApiResponse(responseCode = "409", ref = "#/components/responses/Conflict"),
+        @ApiResponse(responseCode = "422", ref = "#/components/responses/UnsafeDestination"),
+        @ApiResponse(responseCode = "503", ref = "#/components/responses/CreationUnavailable"),
         @ApiResponse(responseCode = "500", ref = "#/components/responses/ServerError")
     })
     @PostMapping
@@ -58,6 +59,7 @@ public class UrlController {
         @ApiResponse(responseCode = "200", description = "Link metadata and analytics",
                 content = @Content(mediaType = "application/json", schema = @Schema(implementation = ShortUrlStatsResponse.class))),
         @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),
+        @ApiResponse(responseCode = "503", ref = "#/components/responses/QuotaUnavailable"),
         @ApiResponse(responseCode = "500", ref = "#/components/responses/ServerError")
     })
     @GetMapping("/{shortCode}")
@@ -69,6 +71,7 @@ public class UrlController {
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Link deleted", content = @Content),
         @ApiResponse(responseCode = "404", ref = "#/components/responses/NotFound"),
+        @ApiResponse(responseCode = "503", ref = "#/components/responses/QuotaUnavailable"),
         @ApiResponse(responseCode = "500", ref = "#/components/responses/ServerError")
     })
     @DeleteMapping("/{shortCode}")

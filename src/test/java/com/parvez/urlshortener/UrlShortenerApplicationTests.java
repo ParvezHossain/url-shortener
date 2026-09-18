@@ -28,6 +28,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
+@org.springframework.context.annotation.Import(com.parvez.urlshortener.safety.SafetyTestConfig.class)
 @Testcontainers
 class UrlShortenerApplicationTests {
 
@@ -307,7 +308,7 @@ class UrlShortenerApplicationTests {
         try (var connection = DriverManager.getConnection(
                 postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
                 var statement = connection.prepareStatement(
-                        "insert into short_url (short_code, original_url, custom_alias, expires_at) values (?, ?, true, ?)")) {
+                        "insert into short_url (short_code, original_url, custom_alias, expires_at, safety_state) values (?, ?, true, ?, 'ACTIVE')")) {
             statement.setString(1, code);
             statement.setString(2, "https://example.com/redirect?q=1");
             statement.setTimestamp(3, expiresAt == null ? null : java.sql.Timestamp.from(expiresAt));

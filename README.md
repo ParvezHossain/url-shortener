@@ -305,3 +305,14 @@ are `GET /api/v2/urls/{code}/qr.png` and `GET /api/v2/urls/{code}/qr.svg`;
 see [QR options and examples](docs/API_REQUESTS.md#owned-qr-images-ticket-f05).
 Images encode the public short URL and are generated on demand with no stored
 blobs. TICKET-F05 adds ZXing Core 3.5.4 for QR encoding and decoding tests.
+
+
+### Link safety
+
+New links require a configured reputation scanner. Set `SAFETY_SCANNER_ENDPOINT`
+and, if required, `SAFETY_SCANNER_TOKEN` in the environment (or `.env` for Compose).
+The scanner must implement the [documented JSON contract](docs/ARCHITECTURE.md#16-link-safety-ticket-f06).
+Scanning is synchronous and fails closed: malicious links return 422; missing or
+unavailable scanning returns 503. Internal destinations are blocked before scanning.
+Only ACTIVE links redirect. Existing links are preserved as legacy-unscanned.
+See `.env.example` for timeout, verdict-cache TTL, provider revision, and CIDR settings.

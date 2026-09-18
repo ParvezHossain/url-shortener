@@ -46,6 +46,32 @@ public class ShortUrl {
     @Column(name = "last_accessed_at")
     private Instant lastAccessedAt;
 
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "safety_state", nullable = false)
+    private SafetyState safetyState = SafetyState.PENDING;
+
+    @Column(name = "safety_provider")
+    private String safetyProvider;
+
+    @Column(name = "scanned_at")
+    private Instant scannedAt;
+
+    /** Applies a completed scan decision before the link transaction commits. */
+    public void applySafety(SafetyState state, String provider, Instant timestamp) {
+        Objects.requireNonNull(state);
+        Objects.requireNonNull(provider);
+        Objects.requireNonNull(timestamp);
+        this.safetyState = state;
+        this.safetyProvider = provider;
+        this.scannedAt = timestamp;
+    }
+
+    /** Reports whether the destination is eligible for redirection. */
+    public boolean isActive() { return safetyState == SafetyState.ACTIVE; }
+
+    /** Returns the persisted activation decision. */
+    public SafetyState getSafetyState() { return safetyState; }
+
     protected ShortUrl() {
         // required by JPA
     }

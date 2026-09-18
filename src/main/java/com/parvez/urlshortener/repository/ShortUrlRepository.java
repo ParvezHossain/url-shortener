@@ -27,6 +27,7 @@ public interface ShortUrlRepository extends JpaRepository<ShortUrl, Long> {
         @Modifying
         @Query("update ShortUrl u set u.clickCount = u.clickCount + 1, "
             + "u.lastAccessedAt = :accessedAt where u.shortCode = :shortCode "
+            + "and u.safetyState = com.parvez.urlshortener.domain.SafetyState.ACTIVE "
             + "and (u.expiresAt is null or u.expiresAt > :accessedAt)")
         int recordCachedAccess(@Param("shortCode") String shortCode,
             @Param("accessedAt") Instant accessedAt);

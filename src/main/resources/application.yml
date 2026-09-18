@@ -32,6 +32,13 @@ management:
       show-details: when-authorized
 
 app:
+  safety:
+    endpoint: ${SAFETY_SCANNER_ENDPOINT:}
+    token: ${SAFETY_SCANNER_TOKEN:}
+    provider: ${SAFETY_SCANNER_PROVIDER:http-v1}
+    timeout: ${SAFETY_SCANNER_TIMEOUT:PT2S}
+    cache-ttl: ${SAFETY_CACHE_TTL:PT15M}
+    blocked-cidrs: ${SAFETY_BLOCKED_CIDRS:}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:false}
     secret: ${RATE_LIMIT_SECRET:7f3c9a2e5b814d06c2a97e4f1b6d83a0e9c5472f8a31c6d5e0b794a2f63d18c}

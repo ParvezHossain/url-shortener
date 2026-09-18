@@ -115,6 +115,34 @@ class GlobalExceptionHandlerTest {
         verifyNoInteractions(service);
     }
 
+
+    @Test
+    void handleUnsafe_returns422WithoutProviderDetails() throws Exception {
+        var error = new UnsafeDestinationException();
+        when(service.create(any())).thenThrow(error);
+        assertProblem(mvc.perform(post("/api/v1/urls").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"originalUrl\":\"https://example.com\"}")),
+                422, "Unprocessable Content", error.getMessage(), "/api/v1/urls");
+    }
+
+    @Test
+    void handleScannerUnavailable_returns503ProblemDetail() throws Exception {
+        var error = new SafetyScanUnavailableException();
+        when(service.create(any())).thenThrow(error);
+        assertProblem(mvc.perform(post("/api/v1/urls").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"originalUrl\":\"https://example.com\"}")),
+                503, "Service Unavailable", error.getMessage(), "/api/v1/urls");
+    }
+
+    @Test
+    void handleInactive_returns404WithoutLocation() throws Exception {
+        var error = new LinkNotActiveException();
+        when(service.resolve("pending")).thenThrow(error);
+        var result = mvc.perform(get("/pending"));
+        assertProblem(result, 404, "Not Found", error.getMessage(), "/pending");
+        result.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().doesNotExist("Location"));
+    }
+
     private void assertProblem(ResultActions result, int expectedStatus, String title, String detail, String path)
             throws Exception {
         result.andExpect(status().is(expectedStatus))

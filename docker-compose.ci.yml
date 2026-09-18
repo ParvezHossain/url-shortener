@@ -1,0 +1,20 @@
+# Explicit test-only overlay; never use for production reputation decisions.
+services:
+  safety-scanner:
+    image: node:24-alpine
+    command: ["node", "/fixtures/safety-scanner.mjs"]
+    volumes:
+      - ./scripts/fixtures/safety-scanner.mjs:/fixtures/safety-scanner.mjs:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8081/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+  app:
+    depends_on:
+      safety-scanner:
+        condition: service_healthy
+    environment:
+      SAFETY_SCANNER_ENDPOINT: http://safety-scanner:8081/scan
+      SAFETY_SCANNER_TOKEN: ""
+      SAFETY_SCANNER_PROVIDER: ci-fixture-v1

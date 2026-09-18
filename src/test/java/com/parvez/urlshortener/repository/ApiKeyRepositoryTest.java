@@ -35,6 +35,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
+@org.springframework.context.annotation.Import(com.parvez.urlshortener.safety.SafetyTestConfig.class)
 @Testcontainers
 class ApiKeyRepositoryTest {
     @Container @ServiceConnection

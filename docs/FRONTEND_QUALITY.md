@@ -78,3 +78,11 @@ Performance 95, Accessibility 100, Best Practices 100, and SEO 100.
 TICKET-019 adds release workflows and an image-content audit; see
 [Frontend deployment](FRONTEND_DEPLOYMENT.md) for containerized reproduction
 and the analytics hash-route clarification.
+
+
+Link creation now requires scanning. For an isolated browser-test deployment, use
+`docker compose -f docker-compose.yml -f docker-compose.ci.yml up --build --wait`.
+The explicit CI overlay adds a deterministic scanner fixture accepting only HTTPS
+`example.com` destinations; it is not a production reputation service. CI uses
+this overlay for both startup and cleanup. Production must configure a real
+provider using the contract in `ARCHITECTURE.md`.

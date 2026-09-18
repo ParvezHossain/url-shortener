@@ -15,6 +15,24 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /** Reports a blocked destination without disclosing the provider verdict payload. */
+    @ExceptionHandler(UnsafeDestinationException.class)
+    public ProblemDetail handleUnsafe(UnsafeDestinationException ex) {
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+
+    /** Reports failure to obtain a trustworthy scan; clients must not treat the link as active. */
+    @ExceptionHandler(SafetyScanUnavailableException.class)
+    public ProblemDetail handleScannerUnavailable(SafetyScanUnavailableException ex) {
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
+
+    /** Prevents all non-active states from redirecting or revealing the destination. */
+    @ExceptionHandler(LinkNotActiveException.class)
+    public ProblemDetail handleInactive(LinkNotActiveException ex) {
+        return problem(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
     /** Reports missing or invalid credentials without exposing key details. */
     @ExceptionHandler(ApiAuthenticationException.class)
     public ProblemDetail handleAuthentication(ApiAuthenticationException ex) {

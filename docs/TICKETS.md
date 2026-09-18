@@ -748,7 +748,7 @@ Redis alongside PostgreSQL.
 ---
 
 ### TICKET-F06 — Link-safety and malware scanning
-**Status:** Backlog.
+**Status:** Implemented (synchronous fail-closed scanning; operator-configured provider).
 
 **Depends on:** TICKET-F01.
 

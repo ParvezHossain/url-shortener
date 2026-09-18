@@ -1,5 +1,13 @@
 package com.parvez.urlshortener.service;
 
+import com.parvez.urlshortener.exception.LinkNotActiveException;
+
+import com.parvez.urlshortener.exception.SafetyScanUnavailableException;
+
+import com.parvez.urlshortener.exception.UnsafeDestinationException;
+
+import com.parvez.urlshortener.domain.SafetyState;
+
 import com.parvez.urlshortener.cache.RedirectCache;
 import com.parvez.urlshortener.cache.RedirectCacheEntry;
 import com.parvez.urlshortener.domain.ShortUrl;
@@ -24,7 +32,6 @@ import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -36,28 +43,22 @@ import org.springframework.transaction.annotation.Transactional;
 public class UrlShortenerServiceImpl implements UrlShortenerService {
 
     private static final Logger log = LoggerFactory.getLogger(UrlShortenerServiceImpl.class);
+    private final SafetyScanService safety;
     private final ShortUrlRepository repository;
     private final RedirectCache redirectCache;
     private final String baseUrl;
     private final int maxOriginalUrlLength;
     private final Duration permanentCacheTtl;
 
-    /** Supplies persistence and externally configured link settings. */
-    public UrlShortenerServiceImpl(
-            ShortUrlRepository repository,
-            @Value("${app.base-url}") String baseUrl,
-            @Value("${app.short-code.max-original-url-length:2048}") int maxOriginalUrlLength) {
-        this(repository, RedirectCache.noop(), baseUrl, maxOriginalUrlLength, Duration.ofHours(1));
-    }
-
     /** Supplies persistence, cache, and externally configured link settings. */
-    @Autowired
     public UrlShortenerServiceImpl(
             ShortUrlRepository repository,
             RedirectCache redirectCache,
+            SafetyScanService safety,
             @Value("${app.base-url}") String baseUrl,
             @Value("${app.short-code.max-original-url-length:2048}") int maxOriginalUrlLength,
             @Value("${app.cache.redirect.permanent-ttl:PT1H}") Duration permanentCacheTtl) {
+        this.safety = safety;
         this.repository = repository;
         this.redirectCache = redirectCache;
         this.baseUrl = baseUrl.replaceAll("/+$", "");
@@ -71,14 +72,16 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
      * @throws DuplicateAliasException when the requested alias is already in use
      */
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = {UnsafeDestinationException.class,
+            SafetyScanUnavailableException.class})
     public ShortUrlResponse create(CreateShortUrlRequest request) {
         return createForOwner(request, null);
     }
 
     /** Creates a link associated with the authenticated owner. */
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = {UnsafeDestinationException.class,
+            SafetyScanUnavailableException.class})
     public ShortUrlResponse create(CreateShortUrlRequest request,
             OwnerPrincipal owner) {
         return createForOwner(request, requireOwner(owner));
@@ -93,13 +96,24 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
             throw new InvalidUrlException("expiresAt must be in the future");
         }
         if (request.customAlias() != null) {
-            return createCustomAlias(request, ownerId);
+            if (!request.customAlias().matches("[a-zA-Z0-9_-]{3,16}")) {
+                throw new InvalidUrlException("customAlias must contain 3 to 16 letters, digits, underscores, or hyphens");
+            }
+            if (repository.findByShortCode(request.customAlias()).isPresent()) throw new DuplicateAliasException(request.customAlias());
+        }
+        var assessment = safety.inspect(request.originalUrl());
+        request = new CreateShortUrlRequest(assessment.destination(), request.customAlias(), request.expiresAt());
+        if (request.customAlias() != null) {
+            var response = createCustomAlias(request, ownerId, assessment);
+            requireSafe(assessment);
+            return response;
         }
         // Reserved character keeps temporary codes separate from public Base62 codes.
         String temporaryCode = "~" + UUID.randomUUID().toString().replace("-", "").substring(0, 15);
-        var saved = repository.saveAndFlush(newLink(temporaryCode, request, false, ownerId));
+        var saved = repository.saveAndFlush(newLink(temporaryCode, request, false, ownerId, assessment));
         String shortCode = Base62Encoder.encode(saved.getId());
         repository.updateShortCode(saved.getId(), shortCode);
+        requireSafe(assessment);
         log.info("Created short URL with code {}", shortCode);
         return new ShortUrlResponse(shortCode, baseUrl + "/" + shortCode,
                 saved.getOriginalUrl(), saved.getCreatedAt(), saved.getExpiresAt());
@@ -128,6 +142,10 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
 
         var url = repository.findByShortCodeForUpdate(shortCode)
                 .orElseThrow(() -> new UrlNotFoundException(shortCode));
+        if (!url.isActive()) {
+            redirectCache.evict(shortCode);
+            throw new LinkNotActiveException();
+        }
         if (url.isExpired()) {
             redirectCache.evict(shortCode);
             throw new UrlExpiredException(shortCode);
@@ -204,18 +222,12 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
                 new RedirectCacheEntry(url.getOriginalUrl(), url.getExpiresAt()), ttl);
     }
 
-    private ShortUrlResponse createCustomAlias(CreateShortUrlRequest request, UUID ownerId) {
+    private ShortUrlResponse createCustomAlias(CreateShortUrlRequest request, UUID ownerId, SafetyScanService.Assessment assessment) {
         String alias = request.customAlias();
-        if (!alias.matches("[a-zA-Z0-9_-]{3,16}")) {
-            throw new InvalidUrlException("customAlias must contain 3 to 16 letters, digits, underscores, or hyphens");
-        }
-        if (repository.findByShortCode(alias).isPresent()) {
-            throw new DuplicateAliasException(alias);
-        }
         ShortUrl saved;
         try {
             // Flush here so concurrent claims are translated before transaction completion.
-            saved = repository.saveAndFlush(newLink(alias, request, true, ownerId));
+            saved = repository.saveAndFlush(newLink(alias, request, true, ownerId, assessment));
         } catch (DataIntegrityViolationException ex) {
             for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
                 if (cause instanceof ConstraintViolationException violation
@@ -226,7 +238,7 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
             }
             throw ex;
         }
-        log.info("Created short URL with custom alias {}", alias);
+        if (assessment.state() == SafetyState.ACTIVE) log.info("Created short URL with custom alias {}", alias);
         return new ShortUrlResponse(alias, baseUrl + "/" + alias,
                 saved.getOriginalUrl(), saved.getCreatedAt(), saved.getExpiresAt());
     }
@@ -251,9 +263,20 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
         return owner.ownerId();
     }
 
-    private ShortUrl newLink(String code, CreateShortUrlRequest request, boolean custom, UUID ownerId) {
-        return ownerId == null ? new ShortUrl(code, request.originalUrl(), custom, request.expiresAt())
+    private ShortUrl newLink(String code, CreateShortUrlRequest request, boolean custom, UUID ownerId, SafetyScanService.Assessment assessment) {
+        var link = ownerId == null ? new ShortUrl(code, request.originalUrl(), custom, request.expiresAt())
                 : new ShortUrl(code, request.originalUrl(), custom, request.expiresAt(), ownerId);
+        link.applySafety(assessment.state(), assessment.provider(), assessment.scannedAt());
+        return link;
+    }
+
+    private void requireSafe(SafetyScanService.Assessment assessment) {
+        if (assessment.state() == SafetyState.REJECTED) {
+            throw new UnsafeDestinationException();
+        }
+        if (assessment.state() != SafetyState.ACTIVE) {
+            throw new SafetyScanUnavailableException();
+        }
     }
 
     private void validateUrl(String originalUrl) {
