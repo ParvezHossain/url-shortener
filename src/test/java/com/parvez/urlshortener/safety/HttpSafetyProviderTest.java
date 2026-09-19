@@ -3,6 +3,11 @@ package com.parvez.urlshortener.safety;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import org.slf4j.LoggerFactory;
+
 import com.parvez.urlshortener.exception.SafetyScanUnavailableException;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
@@ -76,6 +81,45 @@ class HttpSafetyProviderTest {
         });
         assertThatThrownBy(() -> provider(Duration.ofSeconds(2)).scan(destination))
                 .isInstanceOf(SafetyScanUnavailableException.class).hasMessageNotContaining("scanner-token");
+    }
+
+    @Test
+    void scan_upstream500_reportsSafeDiagnosticWithoutLeakingSecrets() {
+        server.createContext("/scan", exchange -> {
+            byte[] bytes = "private-provider-response".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(500, bytes.length);
+            try (var output = exchange.getResponseBody()) { output.write(bytes); }
+        });
+        var logger = (Logger) LoggerFactory.getLogger(HttpSafetyProvider.class);
+        var events = new ListAppender<ILoggingEvent>();
+        events.start();
+        logger.addAppender(events);
+        try {
+            var provider = new HttpSafetyProvider(json, endpoint + "?secret=endpoint-secret",
+                    "scanner-token", "test-v1", Duration.ofSeconds(2));
+            assertThatThrownBy(() -> provider.scan(destination))
+                    .isInstanceOf(SafetyScanUnavailableException.class)
+                    .hasMessage("Link safety could not be verified; the link is not active");
+            assertThat(events.list).hasSize(1);
+            assertThat(events.list.getFirst().getFormattedMessage())
+                    .isEqualTo("Safety scanner test-v1 unavailable: http_status_500")
+                    .doesNotContain("scanner-token", "endpoint-secret", "private-provider-response", "token=private");
+            assertThat(events.list.getFirst().getThrowableProxy()).isNull();
+        } finally {
+            logger.detachAppender(events);
+            events.stop();
+        }
+    }
+
+    @Test
+    void scan_jsonContentTypeWithWhitespace_acceptsVerdict() {
+        server.createContext("/scan", exchange -> {
+            byte[] bytes = "{\"verdict\":\"SAFE\"}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json ; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (var output = exchange.getResponseBody()) { output.write(bytes); }
+        });
+        assertThat(provider(Duration.ofSeconds(2)).scan(destination)).isEqualTo(SafetyProvider.Verdict.SAFE);
     }
 
     @Test

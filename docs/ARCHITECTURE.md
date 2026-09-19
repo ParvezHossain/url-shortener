@@ -427,3 +427,18 @@ PNG and SVG, consuming three management admissions. Metadata omits safety state;
 UI “Active” means unexpired. Rejected/failed scans persist inactive records and
 reserve aliases despite 422/503; audit is retained independently. No rescan worker
 or continuous DNS guarantee is implemented.
+
+### Scanner connection troubleshooting
+
+`SAFETY_SCANNER_ENDPOINT` must address a separate service implementing the JSON
+contract above. The shortener does not implement `POST /scan`; pointing the
+scanner at the shortener's own port cannot produce a safety verdict. Configure
+this environment variable on the process launched by IntelliJ or Maven and restart
+that process after changing it.
+
+`HttpSafetyProvider` logs the configured provider label and a safe failure reason:
+`endpoint_not_configured`, `http_status_<code>`, `unexpected_content_type`, `timeout`,
+`interrupted`, `transport_or_body_failure`, or `invalid_request_or_response`.
+These diagnostics omit destination URLs, scanner endpoints, tokens, response bodies,
+and exception details. The public response remains the generic safety 503.
+A SCAN_FAILED row is retained and is not automatically rescanned after repair.

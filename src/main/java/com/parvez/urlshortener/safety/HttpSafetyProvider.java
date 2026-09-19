@@ -8,10 +8,15 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.ExecutionException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import tools.jackson.databind.ObjectMapper;
 
 /** Sends destinations only to an operator-configured scanner with a bounded JSON response. */
 public class HttpSafetyProvider implements SafetyProvider {
+    private static final Logger log = LoggerFactory.getLogger(HttpSafetyProvider.class);
     private final HttpClient client;
     private final ObjectMapper json;
     private final String endpoint;
@@ -44,7 +49,7 @@ public class HttpSafetyProvider implements SafetyProvider {
 
     /** Requires HTTP 200 with a JSON SAFE or MALICIOUS verdict; all other results fail closed. */
     @Override public Verdict scan(URI destination) {
-        if (endpoint.isBlank()) throw new SafetyScanUnavailableException();
+        if (endpoint.isBlank()) throw unavailable("endpoint_not_configured");
         java.util.concurrent.CompletableFuture<HttpResponse<String>> pending = null;
         try {
             var request = HttpRequest.newBuilder(URI.create(endpoint)).timeout(timeout)
@@ -53,13 +58,30 @@ public class HttpSafetyProvider implements SafetyProvider {
             if (!token.isBlank()) request.header("Authorization", "Bearer " + token);
             pending = client.sendAsync(request.build(), HttpResponse.BodyHandlers.limiting(HttpResponse.BodyHandlers.ofString(), 4096));
             var response = pending.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-            if (response.statusCode() != 200 || !response.headers().firstValue("Content-Type").orElse("")
-                    .split(";", 2)[0].equalsIgnoreCase("application/json")) throw new SafetyScanUnavailableException();
+            if (response.statusCode() != 200) throw unavailable("http_status_" + response.statusCode());
+            if (!response.headers().firstValue("Content-Type").orElse("")
+                    .split(";", 2)[0].trim().equalsIgnoreCase("application/json")) {
+                throw unavailable("unexpected_content_type");
+            }
             return Verdict.valueOf(json.readTree(response.body()).path("verdict").asText());
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            throw new SafetyScanUnavailableException();
-        } catch (Exception ex) { throw new SafetyScanUnavailableException(); }
+            throw unavailable("interrupted");
+        } catch (SafetyScanUnavailableException ex) {
+            throw ex;
+        } catch (TimeoutException ex) {
+            throw unavailable("timeout");
+        } catch (ExecutionException ex) {
+            throw unavailable("transport_or_body_failure");
+        } catch (Exception ex) {
+            throw unavailable("invalid_request_or_response");
+        }
         finally { if (pending != null && !pending.isDone()) pending.cancel(true); }
+    }
+
+    private SafetyScanUnavailableException unavailable(String reason) {
+        // Only bounded configuration labels and application-owned reasons enter logs.
+        log.warn("Safety scanner {} unavailable: {}", name, reason);
+        return new SafetyScanUnavailableException();
     }
 }
