@@ -33,8 +33,8 @@ management:
 
 app:
   safety:
-    endpoint: http://localhost:8081/scan
-#    endpoint: ${SAFETY_SCANNER_ENDPOINT:}
+#    endpoint: http://localhost:8081/scan
+    endpoint: ${SAFETY_SCANNER_ENDPOINT:}
     token: ${SAFETY_SCANNER_TOKEN:}
     provider: ${SAFETY_SCANNER_PROVIDER:http-v1}
     timeout: ${SAFETY_SCANNER_TIMEOUT:PT2S}
