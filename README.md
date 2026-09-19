@@ -1,12 +1,12 @@
 # URL Shortener
 
-A self-hosted URL shortener API built with Java 25, Spring Boot 4+, PostgreSQL, and Docker.
+A self-hosted URL shortener with a React SPA, Java 25, Spring Boot 4.0.0, PostgreSQL, Redis, and Docker.
 
 > New here? Read `docs/PROJECT_OVERVIEW.md` for what/why, `docs/ARCHITECTURE.md` for how it's built, and `AGENTS.md` if you're an AI agent (or a human) picking up tickets.
 
 ## Features
 
-Current API: `POST /api/v1/urls` validates an HTTP/HTTPS destination and returns a
+Legacy V1 API (deprecated; V2 is the owner-scoped management API): `POST /api/v1/urls` validates an HTTP/HTTPS destination and returns a
 created short link with an ID-based Base62 code or a custom alias. Aliases are
 case-sensitive and must match `[a-zA-Z0-9_-]{3,16}`; invalid aliases return HTTP 400
 and occupied aliases return HTTP 409. An optional future `expiresAt` timestamp is
@@ -20,19 +20,20 @@ Redirect destinations use an optional Redis cache with PostgreSQL fallback; clic
 analytics remain persisted synchronously. See `docs/API_REQUESTS.md` for the
 implemented contract.
 
-Planned full feature set:
-- Shorten a URL to a short code (auto-generated, Base62) or a custom alias.
-- Optional expiration on links.
-- Redirect endpoint with click analytics.
-- OpenAPI/Swagger docs.
-- Fully containerized (Docker Compose: app + PostgreSQL).
+Implemented extensions include owner-scoped V2 API keys and key lifecycle,
+Redis caching and opt-in distributed quotas, PNG/SVG QR generation, and synchronous
+fail-closed link safety. The React frontend supports legacy V1 links and authenticated V2 creation,
+analytics, deletion, QR codes, and a paginated owner list. V1 is deprecated and optionally retired through
+`APP_V1_SUNSET`. Bulk creation, dashboard filters, time-series analytics, and link
+editing remain backlog. See [SUMMARY.md](SUMMARY.md) for the complete inventory.
 
 ## Tech stack
 | | |
 |---|---|
 | Language | Java 25 |
-| Framework | Spring Boot 4+ (Web, Data JPA, Validation, Actuator) |
-| Database | PostgreSQL |
+| Framework | Spring Boot 4.0.0 (MVC, Data JPA, Redis, Validation, Actuator) |
+| Frontend | React, TypeScript, Vite, native CSS |
+| Database | PostgreSQL 17 |
 | Cache | Redis (best effort; PostgreSQL fallback) |
 | Migrations | Flyway |
 | Build | Maven 3.9+ |
@@ -46,6 +47,7 @@ Planned full feature set:
 ```bash
 git clone <repo-url> && cd url-shortener
 cp .env.example .env
+# Edit .env: set database credentials, APP_BASE_URL, and a trusted SAFETY_SCANNER_ENDPOINT.
 docker compose up --build
 ```
 API is now at `http://localhost:8080`, Swagger UI at `http://localhost:8080/swagger-ui.html`.
@@ -56,7 +58,7 @@ cp .env.example .env
 set -a
 . ./.env
 set +a
-docker compose up -d postgres
+docker compose up -d postgres redis
 mvn spring-boot:run
 ```
 
@@ -81,16 +83,17 @@ database or `.env` file is not required for `mvn clean verify`.
 
 ## Docker build and CI
 
-The Dockerfile builds the JAR with Maven and runs it as a non-root user in a
+The Dockerfile checks/builds the frontend with Node, packages the JAR with Maven, and runs it as a non-root user in a
 Java 25 Alpine JRE image. Its health check calls `/actuator/health`.
-Use `docker compose up --build --wait --wait-timeout 180` to wait for both
-PostgreSQL and the app to become healthy. The database uses a named volume.
+Use `docker compose up --build --wait --wait-timeout 180` to wait for
+PostgreSQL, Redis, and the app to become healthy. The database uses a named volume.
 
 `.github/workflows/ci.yml` runs on every pull request, pushes to `main`, and manual
-workflow dispatch. It installs Temurin 25, caches Maven dependencies, and runs
+workflow dispatch. It installs Temurin 25 and Node 24, caches Maven/npm dependencies, and runs
 `mvn --batch-mode --no-transfer-progress clean verify`, including Testcontainers.
 A failed verification fails the job. It then builds and starts Compose, checks
-health, and cleans up the runner's containers and volumes. Container packaging
+health and the production-only image, runs Playwright and Lighthouse with the CI
+scanner fixture, saves reports, and cleans up its containers and volumes. Container packaging
 skips tests because the preceding verification step runs the full suite.
 
 ## Example usage
@@ -112,8 +115,8 @@ Full request/response reference: `docs/API_REQUESTS.md`.
 
 Open `http://localhost:8080/swagger-ui.html` to explore the API and try requests.
 The generated specification is at `http://localhost:8080/v3/api-docs`. It documents
-all four business operations, request validation, success headers, and problem
-responses. Adjust the host/port for your deployment.
+V1 and V2 operations, API-key authentication, request validation, success
+headers, and problem responses. Adjust the host/port for your deployment.
 
 ## Project documentation
 | File | Contents |
@@ -133,7 +136,8 @@ responses. Adjust the host/port for your deployment.
 4. Reference the ticket ID in the commit message and PR title.
 
 ## License
-MIT (adjust as needed).
+License selection is pending owner confirmation. No LICENSE file currently grants
+a project license; historical MIT and Apache metadata must not be treated as a settled choice.
 
 ## Frontend development
 
@@ -175,8 +179,8 @@ Node build stage and supplies those same assets to the Maven build, avoiding
 Node in the runtime image. `-Dfrontend.skip=true` is for that prebuilt-assets
 path only; normal verification should not skip frontend checks.
 
-The reusable components are in `frontend/src/components/ui.tsx`. Design tokens
-and responsive breakpoints are documented in `frontend/src/styles.css`.
+The reusable components are in `frontend/src/components/ui.tsx`. Base tokens and shared controls live in `frontend/src/styles.css`; the visual
+theme and responsive page treatments are in `frontend/src/design.css`.
 Appearance follows the OS until explicitly toggled, with the choice saved in
 local storage. Components support keyboard focus, reduced motion, and semantic
 status/error feedback. `Modal` uses native `<dialog>` behavior for focus trapping
@@ -193,7 +197,8 @@ submission is disabled while awaiting a response. A result panel shows the confi
 Copy the link or use native sharing when supported. If copying is unavailable
 or denied, a selected text field provides a manual copy fallback. **Open link**
 opens the redirect in a new tab; **View analytics** opens `/#/analytics?code=...` in a new tab with the
-created link preselected.
+created link preselected. In V2 mode, analytics opens in the same tab to retain
+the in-memory API key.
 **Shorten another** clears the form and result, then focuses the destination
 field. Result data is kept only in memory; refreshing never repeats creation.
 
@@ -253,7 +258,7 @@ Format reference: [Spring Boot structured logging](https://docs.spring.io/spring
 ## Frontend architecture and deployment
 
 The browser runs React + TypeScript with an application-owned CSS design system.
-`AppShell` selects creation or analytics through hash routing; components call
+`AppShell` selects creation, analytics, QR codes, or My links through hash routing; components call
 same-origin REST endpoints through a bounded request helper. Spring Boot serves
 the Vite build from the application jar with a strict CSP. Docker's final JRE
 image contains the production assets; Node is used only during the build.
@@ -282,7 +287,15 @@ See [v2 requests and migration](docs/API_REQUESTS.md#ticket-f01-authenticated-v2
 for creation, listing, stats, deletion, rotation, revocation, and recovery.
 V1 is deprecated and restricted to unowned legacy links. `APP_V1_SUNSET` optionally
 retires v1 management with 410; public short-link redirects remain available.
-The current frontend continues using v1 until the owner dashboard ticket F07.
+Open **API access** and enter an operator-issued key to use V2 creation,
+analytics, deletion, and QR generation. **My links** (`/#/links?mode=v2`)
+lists your links, newest first, in pages of 20, with links to their analytics.
+The key stays in tab memory; it is never placed in URLs or browser storage.
+Reloading or opening a V2 analytics link in another tab requires entering it again.
+Changing or clearing the key clears forms/results and cancels pending lookups and
+creation requests; a request already received by the server may still complete.
+Rejected credentials never trigger anonymous fallback. **Use legacy V1** explicitly
+returns to anonymous management. Dashboard filters remain F07 backlog.
 
 ### Owner-aware request quotas
 
@@ -316,3 +329,12 @@ Scanning is synchronous and fails closed: malicious links return 422; missing or
 unavailable scanning returns 503. Internal destinations are blocked before scanning.
 Only ACTIVE links redirect. Existing links are preserved as legacy-unscanned.
 See `.env.example` for timeout, verdict-cache TTL, provider revision, and CIDR settings.
+
+## Verification and deployment boundary
+
+Read [the verification follow-up](docs/VERIFICATION_FOLLOWUP.md) before deployment.
+An empty scanner endpoint permits startup but new links fail closed with 503.
+Health alone does not verify scanner readiness. Safety failures can persist inactive
+links and reserve aliases. Only the theme is stored by the UI; its analytics “Active”
+label currently reflects expiry, not scanner state. QR preview uses three management
+requests. Test counts in dated ticket entries are historical snapshots.

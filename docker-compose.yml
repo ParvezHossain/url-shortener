@@ -49,6 +49,7 @@ services:
       POSTGRES_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-urlshortener}
       POSTGRES_USER: ${POSTGRES_USER:-urlshortener}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-urlshortener}
+      REDIRECT_CACHE_PERMANENT_TTL: ${REDIRECT_CACHE_PERMANENT_TTL:-PT1H}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_CONNECT_TIMEOUT: ${REDIS_CONNECT_TIMEOUT:-1s}

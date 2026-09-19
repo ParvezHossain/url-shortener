@@ -843,3 +843,27 @@ dialog::backdrop {
   max-width: 100%;
   height: auto;
 }
+
+/* In-memory API access and owner listing reuse the existing design tokens. */
+.api-access {
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+}
+.api-access summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.api-access form {
+  max-width: 44rem;
+}
+.owner-links {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+.owner-destination {
+  overflow-wrap: anywhere;
+}

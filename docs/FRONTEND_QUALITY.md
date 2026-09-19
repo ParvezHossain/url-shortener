@@ -86,3 +86,21 @@ The explicit CI overlay adds a deterministic scanner fixture accepting only HTTP
 `example.com` destinations; it is not a production reputation service. CI uses
 this overlay for both startup and cleanup. Production must configure a real
 provider using the contract in `ARCHITECTURE.md`.
+
+## Verification scope
+
+Axe checks selected routes/themes against WCAG tags and rejects serious/critical
+violations; this is not a complete accessibility conformance claim. Lighthouse
+thresholds are automated samples. Dated counts are historical. Test the packaged
+app with the explicit CI scanner overlay for disposable browser verification;
+production requires a real scanner. The form/result may resize with content;
+loading must remain stable, controls usable, and content free of horizontal overflow.
+
+## Authenticated management coverage
+
+Component tests cover V2 creation, analytics/deletion, credential replacement and
+clearing, cancellation, safe 401/403 feedback without V1 fallback, shared QR keys,
+and owner pagination. Browser tests exercise My links at 375px and 1440px with
+API fixtures, including pagination, key clearing, storage checks, overflow, and
+axe. These browser fixtures verify the UI; backend ownership enforcement remains
+covered by the Java integration suite.

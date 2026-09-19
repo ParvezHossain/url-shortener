@@ -1,3 +1,4 @@
+import { managementRequest } from "../api/management";
 import {
   apiRequest,
   readJson,
@@ -46,7 +47,9 @@ function validate(fields: Fields): Errors {
 }
 
 /** Creates short links while preserving input and mapping API feedback to accessible fields. */
-export function CreateUrlForm() {
+export function CreateUrlForm({ apiKey = "" }: { apiKey?: string }) {
+  const submission = useRef<AbortController | null>(null);
+  useEffect(() => () => submission.current?.abort(), []);
   const [fields, setFields] = useState<Fields>(emptyFields);
   const [errors, setErrors] = useState<Errors>({});
   const [message, setMessage] = useState("");
@@ -116,8 +119,11 @@ export function CreateUrlForm() {
     setPending(true);
     setErrors({});
     setMessage("");
+    const abort = new AbortController();
+    submission.current = abort;
     try {
-      const response = await apiRequest("/api/v1/urls", {
+      const response = await managementRequest(apiKey, "", {
+        signal: abort.signal,
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -132,6 +138,7 @@ export function CreateUrlForm() {
         }),
       });
       const body = await readJson(response);
+      if (abort.signal.aborted) return;
       if (response.ok) {
         if (
           !validHttpUrl(body.shortUrl) ||
@@ -176,10 +183,11 @@ export function CreateUrlForm() {
         setMessage(retryMessage);
       }
     } catch (error) {
+      if (abort.signal.aborted) return;
       setMessage(failureMessage(error) + " " + retryMessage);
     } finally {
       inFlight.current = false;
-      setPending(false);
+      if (!abort.signal.aborted) setPending(false);
     }
   }
 
@@ -193,6 +201,7 @@ export function CreateUrlForm() {
     return (
       <CreationResult
         result={result}
+        authenticated={!!apiKey}
         onReset={() => {
           resetFocus.current = true;
           setFields(emptyFields);

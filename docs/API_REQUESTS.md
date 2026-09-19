@@ -375,3 +375,13 @@ returns 503. Errors use `application/problem+json` and expose no provider payloa
 Rejected/failed scans retain inactive records and reserve their aliases; after
 recovery use a new alias or omit it. No automatic retry/rescan is performed.
 Non-active codes return 404 on public redirects, without a Location header or click.
+
+## Operational clarifications
+
+DestinationPolicy imposes a 2048-character ceiling even when the service maximum
+is configured higher. Rejected or failed scans can reserve aliases in inactive
+records despite 422/503. Metadata does not currently expose safety state. The main
+frontend uses V1; QR alone uses V2 and requests metadata, PNG, and SVG (three quota
+admissions). Redis redirect values contain destinations; only quota/verdict keys
+use pseudonymized or hashed identifiers. Same-origin and Vite proxy are supported;
+the standalone CORS configuration source is not evidence of cross-origin support.

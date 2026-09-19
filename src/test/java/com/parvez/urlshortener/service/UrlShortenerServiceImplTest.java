@@ -341,11 +341,11 @@ class UrlShortenerServiceImplTest {
         var serviceWithCache = serviceWithCache();
         when(redirectCache.get("hot")).thenReturn(Optional.of(
                 new RedirectCacheEntry("https://example.com/cached", null)));
-        when(repository.recordCachedAccess(anyString(), any(Instant.class))).thenReturn(1);
+        when(repository.recordCachedAccess(anyString(), anyString(), any(Instant.class))).thenReturn(1);
 
         assertThat(serviceWithCache.resolve("hot")).isEqualTo("https://example.com/cached");
 
-        verify(repository).recordCachedAccess(anyString(), any(Instant.class));
+        verify(repository).recordCachedAccess(anyString(), anyString(), any(Instant.class));
         verify(repository, never()).findByShortCodeForUpdate(anyString());
     }
 

@@ -771,7 +771,7 @@ Redis alongside PostgreSQL.
 ---
 
 ### TICKET-F07 — Paginated owner dashboard API
-**Status:** Backlog.
+**Status:** Partial: owner-scoped pagination, deterministic sorting, and supporting index are implemented by F01. The authenticated frontend now supports creation, analytics/deletion, shared QR credentials, and a paginated My links page. API/dashboard filters and filtered states remain backlog.
 
 **Depends on:** TICKET-F01.
 
@@ -837,7 +837,7 @@ Redis alongside PostgreSQL.
 ---
 
 ### TICKET-F10 — Audit trail, operational readiness, and v1 retirement
-**Status:** Backlog.
+**Status:** Partial: key/safety audits and optional V1 sunset are implemented; comprehensive link audit, operational readiness, and enforced retirement remain backlog.
 
 **Depends on:** TICKET-F01 through TICKET-F09, as applicable.
 

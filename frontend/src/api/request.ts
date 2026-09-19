@@ -3,9 +3,19 @@ export class ApiFailure extends Error {
   /** Selects a recovery message for a known transport or response failure. */
   constructor(
     public readonly kind:
-      "offline" | "timeout" | "malformed" | "rate-limit" | "server" | "network",
+      | "offline"
+      | "timeout"
+      | "malformed"
+      | "rate-limit"
+      | "server"
+      | "network"
+      | "unauthorized"
+      | "forbidden",
   ) {
     const messages = {
+      unauthorized:
+        "Your API key was rejected. Update it in API access and try again.",
+      forbidden: "This API key does not have permission for that action.",
       offline: "You’re offline. Reconnect and try again.",
       timeout: "The request took too long. Please try again.",
       malformed:

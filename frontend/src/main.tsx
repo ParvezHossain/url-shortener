@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { ApiErrorBoundary } from "./components/ApiErrorBoundary";
 import { AppShell } from "./components/AppShell";
 import "./styles.css";
+import "./design.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

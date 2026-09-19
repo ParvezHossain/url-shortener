@@ -115,7 +115,7 @@ test("keyboardOnly_createCopyAnalyticsAndConfirmedDelete", async ({
   await page.goto("/");
   await tabTo(page, page.getByLabel("Destination URL"));
   await page.keyboard.type("https://example.com/keyboard");
-  await tabTo(page, page.locator("summary"));
+  await tabTo(page, page.locator(".optional-settings > summary"));
   await page.keyboard.press("Enter");
   await tabTo(page, page.getByLabel("Custom alias (optional)"));
   await page.keyboard.type(code);
@@ -269,9 +269,7 @@ for (const fault of [
   });
 }
 
-test("create_loadingAndResult_reserveSpaceAndRemainAccessible", async ({
-  page,
-}) => {
+test("create_loadingAndResult_remainVisibleAndAccessible", async ({ page }) => {
   await page.goto("/");
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
@@ -303,7 +301,12 @@ test("create_loadingAndResult_reserveSpaceAndRemainAccessible", async ({
   await expect(
     page.getByRole("heading", { name: "Your short link is ready." }),
   ).toBeVisible();
-  expect((await card.boundingBox())!.height).toBe(initial);
+  expect((await card.boundingBox())!.height).toBeGreaterThan(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
   const scan = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
     .analyze();

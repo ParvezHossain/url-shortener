@@ -1,10 +1,12 @@
+import { managementRequest } from "../api/management";
+import { readJson, ApiFailure, failureMessage } from "../api/request";
 import {
-  apiRequest,
-  readJson,
-  ApiFailure,
-  failureMessage,
-} from "../api/request";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { Alert, Button, Card, Input, Modal, Skeleton } from "./ui";
 
 type Stats = {
@@ -61,8 +63,10 @@ function Timestamp({ value, empty }: { value: string | null; empty: string }) {
 /** Looks up one known link and deletes it only after explicit confirmation. */
 export function AnalyticsLookup({
   initialCode = "",
+  apiKey = "",
 }: {
   initialCode?: string;
+  apiKey?: string;
 }) {
   const [code, setCode] = useState(initialCode);
   const [state, setState] = useState<LookupState>({
@@ -78,35 +82,39 @@ export function AnalyticsLookup({
   const input = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  async function load(value: string, abort: AbortController) {
-    try {
-      const response = await apiRequest(
-        `/api/v1/urls/${encodeURIComponent(value)}`,
-        { signal: abort.signal, cache: "no-store" },
-      );
-      if (abort.signal.aborted) return;
-      if (response.status === 404) {
-        setState({
-          kind: "missing",
-          message: `No link found for “${value}”. Check the code and try again.`,
-        });
-        return;
+  const load = useCallback(
+    async (value: string, abort: AbortController) => {
+      try {
+        const response = await managementRequest(
+          apiKey,
+          `/${encodeURIComponent(value)}`,
+          { signal: abort.signal, cache: "no-store" },
+        );
+        if (abort.signal.aborted) return;
+        if (response.status === 404) {
+          setState({
+            kind: "missing",
+            message: `No link found for “${value}”. Check the code and try again.`,
+          });
+          return;
+        }
+        if (!response.ok) throw new Error("Lookup failed");
+        const body = await readJson(response);
+        if (!isStats(body, value)) throw new ApiFailure("malformed");
+        if (!abort.signal.aborted) {
+          setNow(Date.now());
+          setState({ kind: "success", stats: body });
+        }
+      } catch (error) {
+        if (!abort.signal.aborted)
+          setState({
+            kind: "error",
+            message: failureMessage(error),
+          });
       }
-      if (!response.ok) throw new Error("Lookup failed");
-      const body = await readJson(response);
-      if (!isStats(body, value)) throw new ApiFailure("malformed");
-      if (!abort.signal.aborted) {
-        setNow(Date.now());
-        setState({ kind: "success", stats: body });
-      }
-    } catch (error) {
-      if (!abort.signal.aborted)
-        setState({
-          kind: "error",
-          message: failureMessage(error),
-        });
-    }
-  }
+    },
+    [apiKey],
+  );
   function lookup(value: string) {
     request.current?.abort();
     const abort = new AbortController();
@@ -131,7 +139,7 @@ export function AnalyticsLookup({
       active.current = false;
       request.current?.abort();
     };
-  }, [initialCode]);
+  }, [initialCode, load]);
   useEffect(() => {
     if (state.kind === "deleted")
       input.current?.querySelector("input")?.focus();
@@ -180,8 +188,9 @@ export function AnalyticsLookup({
     setDeleting(true);
     setDeleteError("");
     try {
-      const response = await apiRequest(
-        `/api/v1/urls/${encodeURIComponent(target)}`,
+      const response = await managementRequest(
+        apiKey,
+        `/${encodeURIComponent(target)}`,
         { method: "DELETE" },
       );
       if (!active.current) return;

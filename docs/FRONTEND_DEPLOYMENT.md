@@ -13,7 +13,9 @@ The creation route is `/`. Analytics uses `/#/analytics` (optionally
 the smoke test follows the existing hash route because `/analytics` belongs to
 the short-code namespace and may already be a user's alias. A catch-all SPA
 fallback would also break unknown-code 404 responses. The server receives `/`
-for both frontend routes. `/api/v1/urls` accepts POST, not collection GET.
+for every frontend route. Owned links use `/#/links?mode=v2`; authenticated
+analytics includes `mode=v2` in the fragment. Reloading requires entering the
+API key again because credentials stay in memory. `/api/v1/urls` accepts POST, not collection GET.
 
 ## Configuration and local proxy
 
@@ -29,7 +31,8 @@ for both frontend routes. `/api/v1/urls` accepts POST, not collection GET.
 | `E2E_BASE_URL` | Running test application origin for browser checks and screenshots. |
 | `CHROME_PATH` | Optional Chrome/Chromium executable override for browser and Lighthouse checks. |
 
-Copy `.env.example` to `.env`, set credentials and the public origin, then:
+Copy `.env.example` to `.env`, set credentials, the public origin, and a trusted
+`SAFETY_SCANNER_ENDPOINT` (plus its token when required), then:
 
 ```bash
 docker compose up --build --wait --wait-timeout 180
@@ -45,7 +48,7 @@ changes. Keep PostgreSQL and its persistent volume across application upgrades.
 `docker compose down` stops services; adding `--volumes` deletes database data
 and is appropriate only for disposable test stacks.
 
-For local development, start PostgreSQL and Spring Boot, then run:
+For local development, start PostgreSQL, Redis, a trusted scanner, and Spring Boot, then run:
 
 ```bash
 cd frontend
@@ -69,14 +72,17 @@ reports are not dependency caches. Reports are separate workflow artifacts.
 CI then builds and starts Compose, checks the runtime image and health, and runs
 Playwright against that origin with real PostgreSQL. Tests create unique aliases
 and clean up only their own successful creations. The redirect scenario uses the
-app itself as a destination, so it does not rely on third-party websites. Existing
+public example.com as destination and intercepts short-link navigation to inspect the real 302 without following it.
+The real application redirect and click accounting are exercised; DNS resolution
+still requires network access. Existing
 axe, keyboard, responsive, fault-state, and Lighthouse gates remain enabled.
 
 To reproduce against an isolated stack (commands from the repository root):
 
 ```bash
+export COMPOSE_FILE=docker-compose.yml:docker-compose.ci.yml
 export COMPOSE_PROJECT_NAME=urlshortener-e2e
-export APP_PORT=18080 POSTGRES_PORT=25432 POSTGRES_DB=urlshortener_e2e
+export APP_PORT=18080 POSTGRES_PORT=25432 REDIS_PORT=26379 POSTGRES_DB=urlshortener_e2e
 export APP_BASE_URL=http://localhost:18080 E2E_BASE_URL=http://localhost:18080
 docker compose --env-file /dev/null up --build --wait --wait-timeout 180
 python3 scripts/check-runtime-image.py "$(docker compose images -q app)"
@@ -132,3 +138,12 @@ database name passed the runtime image audit and all 20 Playwright tests. Six
 Lighthouse runs scored Performance 93–95 and Accessibility, Best Practices, and
 SEO 100. Screenshots were captured from that image. Hosted GitHub Actions has
 not been run for these uncommitted changes; its commands were verified locally.
+
+## Verification scope
+
+Axe checks selected routes/themes against WCAG tags and rejects serious/critical
+violations; this is not a complete accessibility conformance claim. Lighthouse
+thresholds are automated samples. Dated counts are historical. Test the packaged
+app with the explicit CI scanner overlay for disposable browser verification;
+production requires a real scanner. The form/result may resize with content;
+loading must remain stable, controls usable, and content free of horizontal overflow.

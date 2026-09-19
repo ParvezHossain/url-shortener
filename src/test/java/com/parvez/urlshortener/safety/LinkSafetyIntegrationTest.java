@@ -45,6 +45,22 @@ class LinkSafetyIntegrationTest {
     }
     @MockitoBean private RedirectCache cache;
 
+    @org.junit.jupiter.api.Test
+    void redirect_reusedAliasWithStaleDestination_returnsCurrentDestinationAndCountsOnce() throws Exception {
+        String code = "reused-alias";
+        jdbc.update("insert into short_url(short_code, original_url, safety_state) values (?, ?, 'ACTIVE')",
+                code, "https://example.com/new");
+        when(cache.get(code)).thenReturn(Optional.of(new RedirectCacheEntry("https://example.com/old", null)));
+        try (var client = HttpClient.newHttpClient()) {
+            var response = client.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/" + code))
+                    .GET().build(), HttpResponse.BodyHandlers.ofString());
+            assertThat(response.statusCode()).isEqualTo(302);
+            assertThat(response.headers().firstValue("Location")).contains("https://example.com/new");
+        }
+        assertThat(jdbc.queryForObject("select click_count from short_url where short_code = ?", Long.class, code)).isEqualTo(1);
+        verify(cache, atLeastOnce()).evict(code);
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"PENDING", "REJECTED", "SCAN_FAILED"})
     void redirect_inactiveLinkWithStaleCache_neverRedirectsOrCountsClick(String state) throws Exception {

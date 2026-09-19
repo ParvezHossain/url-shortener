@@ -37,6 +37,21 @@ class RateLimitConfigTest {
         assertThatThrownBy(() -> config(1, 1, 0)).isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void applicationDefaults_withoutExplicitPolicy_rejectEnabledQuotas() throws Exception {
+        var source = new org.springframework.boot.env.YamlPropertySourceLoader().load("application",
+                new org.springframework.core.io.ClassPathResource("application.yml")).getFirst();
+        var environment = new org.springframework.mock.env.MockEnvironment();
+        String secret = environment.resolvePlaceholders((String) source.getProperty("app.rate-limit.secret"));
+        long management = Long.parseLong(environment.resolvePlaceholders((String) source.getProperty("app.rate-limit.management")));
+        long redirect = Long.parseLong(environment.resolvePlaceholders((String) source.getProperty("app.rate-limit.redirect")));
+        long window = Long.parseLong(environment.resolvePlaceholders((String) source.getProperty("app.rate-limit.window-seconds")));
+        assertThat(secret).isEmpty();
+        assertThatThrownBy(() -> new RateLimitConfig(mock(StringRedisTemplate.class), new SimpleMeterRegistry(),
+                new JacksonJsonHttpMessageConverter().getMapper(), secret, management, redirect, window))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private RateLimitConfig config(long management, long redirect, long window) {
         return new RateLimitConfig(mock(StringRedisTemplate.class), new SimpleMeterRegistry(),
                 new JacksonJsonHttpMessageConverter().getMapper(), "s".repeat(32), management, redirect, window);

@@ -132,7 +132,7 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
             var entry = cached.get();
             var now = Instant.now();
             if (entry.expiresAt() == null || entry.expiresAt().isAfter(now)) {
-                if (repository.recordCachedAccess(shortCode, now) == 1) {
+                if (repository.recordCachedAccess(shortCode, entry.destination(), now) == 1) {
                     log.info("Resolved short URL with code {}", shortCode);
                     return entry.destination();
                 }

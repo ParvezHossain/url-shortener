@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 350" fill="none">
+  <defs>
+    <linearGradient id="r" x1="40" y1="170" x2="740" y2="190" gradientUnits="userSpaceOnUse"><stop stop-color="#9b88ff"/><stop offset=".38" stop-color="#607bff"/><stop offset=".75" stop-color="#48d9ff"/><stop offset="1" stop-color="#00beff"/></linearGradient>
+    <filter id="g" x="-30%" y="-70%" width="160%" height="240%"><feGaussianBlur stdDeviation="7"/></filter>
+    <filter id="b" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3"/></filter>
+    <radialGradient id="h"><stop stop-color="#2bcaff" stop-opacity=".7"/><stop offset="1" stop-color="#009dff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="709" cy="176" rx="62" ry="58" fill="url(#h)"/>
+  <g stroke="url(#r)">
+    <path d="M711 176C524 174 482 84 282 84S30 161 72 210s154 84 283 50S573 175 711 176" stroke-width="12" opacity=".65" filter="url(#g)"/>
+    <path d="M711 176C520 170 480 84 282 84S30 161 72 210s154 84 283 50S573 175 711 176" stroke-width="2.5"/>
+    <path d="M711 176C523 186 477 104 275 103S54 164 85 205s141 67 265 43S575 180 711 176" stroke-width="1.5" opacity=".9"/>
+    <path d="M711 176C526 159 476 70 283 72S9 158 60 218s173 85 300 49S575 169 711 176" stroke-width="1.2" opacity=".5"/>
+    <path d="M711 176C505 186 472 117 273 114S58 170 100 206s130 51 258 28S574 184 711 176" stroke-width="1.2" opacity=".6"/>
+    <path d="M711 176C519 169 481 93 277 92S38 162 81 213s155 70 284 36S575 177 711 176" stroke-width="1" stroke="#b6e9ff" opacity=".95"/>
+    <path d="M711 176C500 172 441 140 327 144" stroke-width="2" opacity=".5"/>
+  </g>
+  <circle cx="711" cy="176" r="7" fill="#69e6ff" filter="url(#b)"/>
+  <circle cx="711" cy="176" r="2.5" fill="#defaff"/>
+</svg>

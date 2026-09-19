@@ -10,7 +10,7 @@ import { Alert, Button, Card, Input } from "./ui";
 type Preview = { png: string; svg: string; shortUrl: string; code: string };
 
 /** Previews and downloads owned QR images using a credential held only in memory. */
-export function QrCodePanel() {
+export function QrCodePanel({ apiKey = "" }: { apiKey?: string }) {
   const [code, setCode] = useState("");
   const [key, setKey] = useState("");
   const [size, setSize] = useState("256");
@@ -39,7 +39,7 @@ export function QrCodePanel() {
     event.preventDefault();
     if (activeRequest.current) return;
     changed();
-    if (!/^[a-zA-Z0-9_-]{1,16}$/.test(code.trim()) || !key.trim()) {
+    if (!/^[a-zA-Z0-9_-]{1,16}$/.test(code.trim()) || !(apiKey || key).trim()) {
       setError("Enter an owned short code and its owner's API key.");
       return;
     }
@@ -60,7 +60,7 @@ export function QrCodePanel() {
     activeRequest.current = abort;
     setBusy(true);
     const init: RequestInit = {
-      headers: { "X-API-Key": key.trim() },
+      headers: { "X-API-Key": (apiKey || key).trim() },
       cache: "no-store",
       signal: abort.signal,
     };
@@ -124,7 +124,7 @@ export function QrCodePanel() {
     }
   }
   return (
-    <section className="analytics-page" aria-labelledby="qr-title">
+    <section className="analytics-page qr-page" aria-labelledby="qr-title">
       <h1 id="qr-title">QR codes</h1>
       <p className="muted">
         Preview and download a QR code for a link you own. Your API key stays in
@@ -149,18 +149,28 @@ export function QrCodePanel() {
               changed();
             }}
           />
-          <Input
-            label="API key"
-            type="password"
-            value={key}
-            disabled={busy}
-            autoComplete="off"
-            spellCheck={false}
-            onChange={(e) => {
-              setKey(e.target.value);
-              changed();
-            }}
-          />
+          {!apiKey && (
+            <Input
+              label="API key"
+              type="password"
+              value={key}
+              disabled={busy}
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(e) => {
+                setKey(e.target.value);
+                changed();
+              }}
+            />
+          )}
+          <div className="qr-illustration" aria-hidden="true">
+            <div className="scan-frame">
+              <span />
+              <span />
+              <span />
+              <i>↗</i>
+            </div>
+          </div>
           <Input
             label="Image size (pixels)"
             type="number"
@@ -212,7 +222,7 @@ export function QrCodePanel() {
               changed();
             }}
           >
-            Clear API key and preview
+            {apiKey ? "Clear preview" : "Clear API key and preview"}
           </Button>
         </form>
       </Card>

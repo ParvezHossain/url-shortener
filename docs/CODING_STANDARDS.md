@@ -7,7 +7,7 @@ These apply to every PR, human or AI-authored. A PR that violates these should n
 - **Constructor injection only.** No `@Autowired` on fields. Services depend on interfaces, not concrete implementations, where more than one implementation is plausible.
 - **Immutability by default**: DTOs are `record`s; entity setters are only present where JPA requires them.
 - **No wildcard imports.**
-- Formatter: Google Java Format or equivalent, enforced via `spotless-maven-plugin` in `pom.xml` (fails the build on violation).
+- Formatting convention: Google Java Format or equivalent. No Spotless/Checkstyle Maven gate is currently configured; review Java style manually. Frontend formatting is enforced by Prettier.
 
 ## Package structure
 Package-by-layer (`controller`, `service`, `repository`, `domain`, `dto`, `exception`, `config`, `util`) — see `docs/ARCHITECTURE.md` §3. Do not introduce package-by-feature without updating that document first.

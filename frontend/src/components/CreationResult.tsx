@@ -15,9 +15,11 @@ export type CreatedLink = {
 export function CreationResult({
   result,
   onReset,
+  authenticated = false,
 }: {
   result: CreatedLink;
   onReset: () => void;
+  authenticated?: boolean;
 }) {
   const [status, setStatus] = useState("");
   const [manualCopy, setManualCopy] = useState(false);
@@ -175,11 +177,12 @@ export function CreationResult({
           </a>
           <a
             className="button button--secondary"
-            href={`/#/analytics?code=${encodeURIComponent(result.shortCode)}`}
-            target="_blank"
+            href={`/#/analytics?code=${encodeURIComponent(result.shortCode)}${authenticated ? "&mode=v2" : ""}`}
+            target={authenticated ? undefined : "_blank"}
             rel="noopener noreferrer"
           >
-            View analytics <span className="sr-only">(new tab)</span>
+            View analytics{" "}
+            {!authenticated && <span className="sr-only">(new tab)</span>}
           </a>
         </div>
         <Button className="create-submit" variant="secondary" onClick={onReset}>

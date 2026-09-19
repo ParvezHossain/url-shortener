@@ -30,7 +30,7 @@ Arrange / Act / Assert, with blank lines separating the three (no explicit comme
 - Every public method on every `service`, `util`, and `repository` custom-query class has at least: one happy-path test, one test per distinct exception/edge case it can produce.
 - Every controller endpoint has at least: one 2xx test, one validation-failure (4xx) test, one "service throws domain exception → correct status" test.
 - `GlobalExceptionHandler` has a dedicated test class asserting each exception → status/body mapping.
-- Line coverage target: 85%+ on `service` and `util` packages (enforced via `jacoco-maven-plugin`, not a hard gate on `controller`/`domain`).
+- Line coverage target: 85%+ on `service` and `util` packages (a review target only: `jacoco-maven-plugin` generates a report but has no `check` execution).
 
 ## What NOT to do
 - No `Thread.sleep` for timing — use Awaitility or design the code to be testable without real delays.

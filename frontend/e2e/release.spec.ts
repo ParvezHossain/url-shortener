@@ -17,8 +17,8 @@ test("userCreatesShortUrlAndOpensRedirect", async ({
   request,
   baseURL,
 }) => {
-  // The destination is the app itself, so the test needs no third-party website.
-  const destination = `${baseURL}/?destination=${randomUUID()}`;
+  // A public destination passes policy; verify the real 302 without visiting another site.
+  const destination = `https://example.com/?destination=${randomUUID()}`;
   await page.goto("/");
   await page.getByLabel("Destination URL").fill(destination);
   const created = page.waitForResponse(
@@ -35,12 +35,24 @@ test("userCreatesShortUrlAndOpensRedirect", async ({
   await expect(
     page.getByRole("heading", { name: "Your short link is ready." }),
   ).toBeVisible();
+  await context.route(result.shortUrl, async (route) => {
+    const redirect = await route.fetch({ maxRedirects: 0 });
+    expect(redirect.status()).toBe(302);
+    expect(redirect.headers().location).toBe(destination);
+    await route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<h1>Redirect verified</h1>",
+    });
+  });
   const [destinationPage] = await Promise.all([
     context.waitForEvent("page"),
     page.getByRole("link", { name: /Open link/ }).click(),
   ]);
-  await expect(destinationPage).toHaveURL(destination);
-  await expect(destinationPage.getByLabel("Destination URL")).toBeVisible();
+  await expect(destinationPage).toHaveURL(result.shortUrl);
+  await expect(
+    destinationPage.getByRole("heading", { name: "Redirect verified" }),
+  ).toBeVisible();
   const stats = await request.get(`/api/v1/urls/${result.shortCode}`);
   expect(stats.status()).toBe(200);
   expect((await stats.json()).clickCount).toBe(1);
@@ -82,7 +94,7 @@ test("duplicateAliasDisplaysActionableError", async ({ page, request }) => {
   codes.push(code);
   await page.goto("/");
   await page.getByLabel("Destination URL").fill("https://example.com/new");
-  await page.locator("summary").click();
+  await page.locator(".optional-settings > summary").click();
   await page.getByLabel("Custom alias (optional)").fill(code);
   await page.getByRole("button", { name: "Shorten link", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText(
